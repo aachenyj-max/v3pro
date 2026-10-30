@@ -1,0 +1,30 @@
+<svg width="68" height="84" viewBox="0 0 68 84" fill="none" xmlns="http://www.w3.org/2000/svg">
+<mask id="mask0_729_1940" style="mask-type:alpha" maskUnits="userSpaceOnUse" x="0" y="2" width="68" height="81">
+<path fill-rule="evenodd" clip-rule="evenodd" d="M44.7414 6.43948C38.6604 0.520173 29.3396 0.520173 23.2584 6.43948C18.5536 11.0191 12.7887 17.3318 8.18308 24.5728C3.59819 31.7813 0 40.1631 0 48.8218C0 65.6543 12.8922 83 34 83C55.1079 83 68 65.6543 68 48.8218C68 40.1631 64.4019 31.7813 59.8168 24.5728C55.2112 17.3318 49.4463 11.0191 44.7414 6.43948Z" fill="#044095"/>
+</mask>
+<g mask="url(#mask0_729_1940)">
+<path fill-rule="evenodd" clip-rule="evenodd" d="M44.7414 6.43948C38.6604 0.520173 29.3396 0.520173 23.2584 6.43948C18.5536 11.0191 12.7887 17.3318 8.18308 24.5728C3.59819 31.7813 0 40.1631 0 48.8218C0 65.6543 12.8922 83 34 83C55.1079 83 68 65.6543 68 48.8218C68 40.1631 64.4019 31.7813 59.8168 24.5728C55.2112 17.3318 49.4463 11.0191 44.7414 6.43948Z" fill="url(#paint0_linear_729_1940)"/>
+<g filter="url(#filter0_f_729_1940)">
+<ellipse cx="34.5913" cy="-50.1216" rx="105.252" ry="107.88" stroke="#0D6FE8" stroke-width="36.9886"/>
+</g>
+<g filter="url(#filter1_f_729_1940)">
+<ellipse cx="34.5915" cy="-50.1212" rx="109.983" ry="112.728" stroke="#E0EFFF" stroke-width="16.7045"/>
+</g>
+</g>
+<defs>
+<filter id="filter0_f_729_1940" x="-103.473" y="-190.814" width="276.13" height="281.384" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+<feFlood flood-opacity="0" result="BackgroundImageFix"/>
+<feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/>
+<feGaussianBlur stdDeviation="7.15909" result="effect1_foregroundBlur_729_1940"/>
+</filter>
+<filter id="filter1_f_729_1940" x="-98.0616" y="-185.52" width="265.306" height="270.797" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+<feFlood flood-opacity="0" result="BackgroundImageFix"/>
+<feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/>
+<feGaussianBlur stdDeviation="7.15909" result="effect1_foregroundBlur_729_1940"/>
+</filter>
+<linearGradient id="paint0_linear_729_1940" x1="34" y1="2" x2="34" y2="83" gradientUnits="userSpaceOnUse">
+<stop stop-color="#043D89"/>
+<stop offset="1" stop-color="#002861"/>
+</linearGradient>
+</defs>
+</svg>

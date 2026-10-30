@@ -1,0 +1,187 @@
+@font-face { font-family:"V3 Geist"; src:url("/assets/v5/fonts/geist-latin.woff2") format("woff2"); font-style:normal; font-weight:100 900; font-display:block; }
+@font-face { font-family:"Aeonik Soft Pro"; src:url("/assets/v5/fonts/aeonik-soft-pro/AeonikSoftPro-Air.otf") format("opentype"); font-style:normal; font-weight:100; font-display:swap; }
+@font-face { font-family:"Aeonik Soft Pro"; src:url("/assets/v5/fonts/aeonik-soft-pro/AeonikSoftPro-Thin.otf") format("opentype"); font-style:normal; font-weight:200; font-display:swap; }
+@font-face { font-family:"Aeonik Soft Pro"; src:url("/assets/v5/fonts/aeonik-soft-pro/AeonikSoftPro-Light.otf") format("opentype"); font-style:normal; font-weight:300; font-display:swap; }
+@font-face { font-family:"Aeonik Soft Pro"; src:url("/assets/v5/fonts/aeonik-soft-pro/AeonikSoftPro-Regular.otf") format("opentype"); font-style:normal; font-weight:400; font-display:swap; }
+@font-face { font-family:"Aeonik Soft Pro"; src:url("/assets/v5/fonts/aeonik-soft-pro/AeonikSoftPro-Medium.otf") format("opentype"); font-style:normal; font-weight:500; font-display:swap; }
+@font-face { font-family:"Aeonik Soft Pro"; src:url("/assets/v5/fonts/aeonik-soft-pro/AeonikSoftPro-SemiBold.otf") format("opentype"); font-style:normal; font-weight:600; font-display:swap; }
+@font-face { font-family:"Aeonik Soft Pro"; src:url("/assets/v5/fonts/aeonik-soft-pro/AeonikSoftPro-Bold.otf") format("opentype"); font-style:normal; font-weight:700; font-display:swap; }
+@font-face { font-family:"Aeonik Soft Pro"; src:url("/assets/v5/fonts/aeonik-soft-pro/AeonikSoftPro-Black.otf") format("opentype"); font-style:normal; font-weight:900; font-display:swap; }
+@font-face { font-family:"Aeonik Soft Pro"; src:url("/assets/v5/fonts/aeonik-soft-pro/AeonikSoftPro-AirItalic.otf") format("opentype"); font-style:italic; font-weight:100; font-display:swap; }
+@font-face { font-family:"Aeonik Soft Pro"; src:url("/assets/v5/fonts/aeonik-soft-pro/AeonikSoftPro-ThinItalic.otf") format("opentype"); font-style:italic; font-weight:200; font-display:swap; }
+@font-face { font-family:"Aeonik Soft Pro"; src:url("/assets/v5/fonts/aeonik-soft-pro/AeonikSoftPro-LightItalic.otf") format("opentype"); font-style:italic; font-weight:300; font-display:swap; }
+@font-face { font-family:"Aeonik Soft Pro"; src:url("/assets/v5/fonts/aeonik-soft-pro/AeonikSoftPro-RegularItalic.otf") format("opentype"); font-style:italic; font-weight:400; font-display:swap; }
+@font-face { font-family:"Aeonik Soft Pro"; src:url("/assets/v5/fonts/aeonik-soft-pro/AeonikSoftPro-MediumItalic.otf") format("opentype"); font-style:italic; font-weight:500; font-display:swap; }
+@font-face { font-family:"Aeonik Soft Pro"; src:url("/assets/v5/fonts/aeonik-soft-pro/AeonikSoftPro-SemiBoldItalic.otf") format("opentype"); font-style:italic; font-weight:600; font-display:swap; }
+@font-face { font-family:"Aeonik Soft Pro"; src:url("/assets/v5/fonts/aeonik-soft-pro/AeonikSoftPro-BoldItalic.otf") format("opentype"); font-style:italic; font-weight:700; font-display:swap; }
+@font-face { font-family:"Aeonik Soft Pro"; src:url("/assets/v5/fonts/aeonik-soft-pro/AeonikSoftPro-BlackItalic.otf") format("opentype"); font-style:italic; font-weight:900; font-display:swap; }
+:root { --ink:#202020; --paper:#f5f4f1; }
+* { box-sizing:border-box; }
+html, body { margin:0; width:100%; height:100%; overflow:hidden; overscroll-behavior:none; background:var(--paper); color:var(--ink); font-family:Inter,"PingFang SC","Microsoft YaHei",Arial,sans-serif; }
+button { font:inherit; }
+.demo-shell { width:100vw; height:100vh; overflow:hidden; background:radial-gradient(circle at 50% 38%,#fff 0,#f8f7f4 48%,#edece8 100%); user-select:none; }
+.topbar { position:fixed; inset:0 0 auto; z-index:30; display:flex; align-items:center; justify-content:space-between; padding:22px 28px; pointer-events:none; }
+.brand-block { pointer-events:auto; }
+.brand-block h1 { margin:3px 0 0; font-size:18px; letter-spacing:-.02em; }
+.eyebrow { color:#8a8782; font-size:10px; font-weight:700; letter-spacing:.18em; }
+.solution-switch { display:flex; padding:4px; border:1px solid #deddd9; border-radius:999px; background:#ffffffc7; box-shadow:0 8px 28px #1b1b1b10; backdrop-filter:blur(16px); pointer-events:auto; }
+.solution-switch button { border:0; background:transparent; color:#888; padding:10px 18px; border-radius:999px; cursor:pointer; font-weight:650; }
+.solution-switch button.active { color:#161616; background:white; box-shadow:0 3px 12px #00000015; }
+.solution-switch small { margin-left:5px; color:#aaa; font-size:9px; }
+.workspace { min-height:100vh; display:grid; place-items:center; padding:78px 18px 150px; }
+.device-wrap { position:relative; width:min(1220px,96vw,calc((100vh - 228px)*1.3933)); aspect-ratio:1665/1195; filter:drop-shadow(0 34px 35px #554c4522); }
+.device-image { position:absolute; inset:0; width:100%; height:100%; object-fit:contain; pointer-events:none; }
+.round-screen { position:absolute; left:20.6%; top:31.25%; width:25.65%; aspect-ratio:1; border-radius:50%; overflow:hidden; background:#050505; cursor:pointer; touch-action:none; box-shadow:inset 0 0 0 2px #ffffff1a; outline:none; font-family:"Aeonik Soft Pro","Avenir Next","V3 Geist","Segoe UI",Arial,sans-serif; }
+.round-screen:focus-visible { box-shadow:0 0 0 4px #5c92ff80; }
+.round-screen > img { width:100%; height:100%; object-fit:cover; display:block; pointer-events:none; }
+.pump-screen-svg { position:absolute; inset:0; display:block; width:100%; height:100%; overflow:hidden; background:#000; }
+.pump-screen-svg text { fill:#fff; font-family:"Aeonik Soft Pro","Avenir Next","V3 Geist","Segoe UI",Arial,sans-serif; }
+.pump-svg-title { font-size:26px; font-weight:400; letter-spacing:-.35px; }
+.pump-svg-time { font-size:69px; font-weight:500; letter-spacing:1.2px; font-variant-numeric:tabular-nums; }
+.pump-svg-hint { font-size:19px; font-weight:400; letter-spacing:-.25px; }
+.pump-hint-shine-text { font-family:"Aeonik Soft Pro","Avenir Next","V3 Geist","Segoe UI",Arial,sans-serif; font-size:19px; font-weight:400; letter-spacing:-.25px; }
+.seal-status-hint text,.leak-final-overlay text { font-family:"Aeonik Soft Pro","Avenir Next","V3 Geist","Segoe UI",Arial,sans-serif; font-size:19px; font-weight:400; letter-spacing:-.25px; }
+.seal-loading-indicator { position:relative; display:grid; width:90px; height:90px; place-items:center; }
+.seal-loading-indicator::before { content:""; width:66px; height:66px; border-radius:50%; background:conic-gradient(from 90deg,rgba(255,255,255,0) 0deg,rgba(255,255,255,.9) .517deg,rgba(255,255,255,0) 360deg); animation:sealLoaderSpin 2s linear infinite; }
+.seal-loading-indicator span { position:absolute; width:33px; height:33px; border-radius:50%; background:rgba(255,255,255,.5); }
+@keyframes sealLoaderSpin { to { transform:rotate(360deg); } }
+.seal-passed-icon { transform-origin:216px 196px; }
+.seal-passed-icon-bg { fill:#fff; transform-origin:216px 196px; animation:sealPassedCircleIn .5s cubic-bezier(.2,.75,.2,1) both; }
+.seal-passed-icon-check { fill:none; stroke:#fff; stroke-width:4.34841px; stroke-linecap:round; stroke-linejoin:round; transform-origin:216px 196px; animation:sealPassedCheckIn .42s .58s cubic-bezier(.2,.8,.2,1) both; }
+@keyframes sealPassedCircleIn { 0% { opacity:.049645; transform:scale(1.160285); } 55% { opacity:.089027; transform:scale(1.128779); } 100% { opacity:.25; transform:scale(1); } }
+@keyframes sealPassedCheckIn { 0% { opacity:0; transform:scale(0); } 28% { opacity:1; transform:scale(.25); } 78% { opacity:1; transform:scale(1.08); } 100% { opacity:1; transform:scale(1); } }
+.leak-step-dots circle { fill:#4d4d4d; }
+.leak-step-dots circle.active { fill:#fff; }
+.pump-svg-values text { font-size:26px; font-weight:400; font-variant-numeric:tabular-nums; }
+.standby-text-shine { position:absolute; z-index:3; inset:0; width:100%; height:100%; pointer-events:none; }
+.leak-workflow-screen { position:absolute; z-index:3; inset:0; display:block; width:100%; height:100%; overflow:hidden; background:#000; }
+.leak-workflow-video-screen { position:absolute; z-index:3; inset:0; overflow:hidden; border-radius:50%; background:#000; pointer-events:none; }
+.leak-workflow-video-screen video { position:absolute; inset:9.259%; display:block; width:81.482%; height:81.482%; border-radius:50%; object-fit:cover; }
+.seamless-leak-video { position:absolute; z-index:3; inset:0; overflow:hidden; border-radius:50%; background:#000; pointer-events:none; }
+.seamless-leak-layout { position:absolute; z-index:1; inset:0; display:block; width:100%; height:100%; }
+.seamless-leak-video video { position:absolute; z-index:2; display:block; object-fit:cover; background:#000; opacity:0; transition:opacity .6s ease-in-out; }
+.seamless-leak-video video.is-active { opacity:1; }
+.seamless-leak-video.is-full-page video { inset:9.259%; width:81.482%; height:81.482%; border-radius:50%; }
+.seamless-leak-video[aria-label="Check Cup"] video { transform:translateX(2.7%); }
+.seamless-leak-video.is-artwork video { left:24.306%; top:22.454%; width:51.389%; height:51.389%; }
+.seamless-leak-video[aria-label="Check Fit"] .seamless-leak-layout { z-index:0; }
+.seamless-leak-video[aria-label="Check Fit"]::after { content:""; position:absolute; z-index:1; left:71.1%; top:22.454%; width:4.65%; height:51.389%; background:#000; }
+.seamless-leak-video[aria-label="Check Fit"] video { transform:translateX(-8.78%); }
+.seamless-leak-video[aria-label="Self-Check Complete"] video { left:24.074%; top:29.398%; width:57.87%; height:57.87%; }
+.seamless-leak-video.is-bright video { filter:brightness(1.12) contrast(1.03); }
+.leak-final-copy-overlay { position:absolute; z-index:3; inset:0; display:block; width:100%; height:100%; }
+.leak-artwork-copy-overlay { position:absolute; z-index:3; inset:0; display:block; width:100%; height:100%; }
+.leak-page-chrome { position:absolute; z-index:4; inset:0; display:block; width:100%; height:100%; pointer-events:none; }
+.leak-page-title { fill:#fff; font-family:"Aeonik Soft Pro","Avenir Next","V3 Geist","Segoe UI",Arial,sans-serif; font-size:25px; font-weight:400; letter-spacing:-.35px; }
+.leak-artwork-copy-overlay text { fill:#fff; font-family:"Aeonik Soft Pro","Avenir Next","V3 Geist","Segoe UI",Arial,sans-serif; font-size:25px; font-weight:400; letter-spacing:-.35px; }
+.leak-final-animation-copy text { font-family:"Aeonik Soft Pro","Avenir Next","V3 Geist","Segoe UI",Arial,sans-serif; font-size:19px; font-weight:400; letter-spacing:-.35px; }
+.leak-switch-base,.leak-switch-shine { font-family:"Aeonik Soft Pro","Avenir Next","V3 Geist","Segoe UI",Arial,sans-serif; font-size:19px; font-weight:400; letter-spacing:-.2px; }
+.leak-switch-base { fill:#929292; }
+.leak-switch-shine,.menu-hint-shine-text,.standby-shine-text,.pump-screen-svg:not(.pump-screen-svg-leak-final) .pump-hint-shine-text { animation:shineEnvelope 3.6s linear infinite; }
+@keyframes shineEnvelope { 0%,68% { opacity:1; } 76%,84% { opacity:0; } 100% { opacity:1; } }
+.pro-header-status { pointer-events:none; }
+.standby-base-text,.standby-shine-text { font-family:"Aeonik Soft Pro","Avenir Next","V3 Geist","Segoe UI",Arial,sans-serif; font-size:18px; font-weight:400; letter-spacing:-.2px; }
+.standby-base-text { fill:#A39A9D; }
+.pause-curve-svg { transform-box:fill-box; transform-origin:center; }
+.pump-screen { position:absolute; inset:0; overflow:hidden; color:#fff; background:#000; }
+.pump-orb { position:absolute; inset:9.26%; border-radius:50%; background:center/cover no-repeat; }
+.bluetooth-status { position:absolute; z-index:2; top:15.8%; left:47.2%; width:5.55%; height:5.55%; opacity:.8; }
+.pump-screen h2 { position:absolute; z-index:2; top:24.2%; left:10%; right:10%; margin:0; text-align:center; font-size:clamp(11px,1.45vw,19px); line-height:1; font-weight:400; }
+.pump-time { position:absolute; z-index:2; top:37%; left:8%; right:8%; text-align:center; font-size:clamp(31px,4.55vw,62px); line-height:1; font-weight:650; letter-spacing:-.04em; font-variant-numeric:tabular-nums; }
+.start-hint,.resume-hint { position:absolute; z-index:2; left:10%; right:10%; margin:0; color:#ffffff80; text-align:center; font-size:clamp(7px,.92vw,13px); font-weight:400; }
+.start-hint { top:57.1%; overflow:hidden; }
+.start-hint::after { content:""; position:absolute; inset:-60% -35%; background:linear-gradient(100deg,transparent 36%,#fff9 50%,transparent 64%); transform:translateX(-70%); animation:hintSweep 2.4s ease-in-out infinite; }
+@keyframes hintSweep { 55%,100% { transform:translateX(70%); } }
+.pump-values { position:absolute; z-index:2; left:27.5%; right:27.5%; bottom:23.5%; display:grid; grid-template-columns:1fr 1fr 1fr; align-items:center; text-align:center; font-size:clamp(10px,1.35vw,18px); font-weight:400; white-space:nowrap; }
+.pump-values span { display:flex; align-items:center; justify-content:center; gap:3px; }
+.pump-values img { width:1.1em; height:1.1em; filter:brightness(0) invert(1); }
+.running-curve,.pause-curve { position:absolute; z-index:1; left:9.1%; right:9.1%; top:51.5%; height:13%; overflow:hidden; }
+.running-curve img,.pause-curve img { width:100%; height:100%; object-fit:fill; }
+.running-curve img { animation:curveFlow 1.8s linear infinite; transform-origin:center; }
+@keyframes curveFlow { 0% { transform:translateX(-2%) scaleX(1.05); } 50% { transform:translateX(2%) scaleX(1.05); } 100% { transform:translateX(-2%) scaleX(1.05); } }
+.pump-pumping .pump-time { top:32.5%; }
+.pump-pumping .running-curve { top:51.5%; }
+.pump-paused .pause-curve { top:43.5%; opacity:.42; }
+.pump-paused h2 { top:24.2%; }
+.paused-play { position:absolute; z-index:3; top:39.8%; left:50%; width:13.8%; aspect-ratio:1; transform:translateX(-50%); border-radius:38% 48% 48% 38%; background:#fff; filter:drop-shadow(0 3px 8px #0004); }
+.paused-play span { position:absolute; inset:25% 18% 25% 34%; background:var(--mode-color); clip-path:polygon(0 0,100% 50%,0 100%); }
+.resume-hint { top:58.8%; }
+.guide-screen { position:absolute; inset:0; display:flex; flex-direction:column; justify-content:center; align-items:center; gap:8px; padding:20%; color:white; text-align:center; background:radial-gradient(circle at 50% 35%,#17202d,#050608 65%); }
+.guide-screen img { width:74%; height:auto; }
+.guide-screen b { font-size:clamp(8px,1vw,14px); }
+.guide-screen span { color:#89929e; font-size:clamp(6px,.72vw,10px); }
+.dynamic-level { position:absolute; inset:0; color:#fff; background:#000; }
+.speed-progress-svg,.arc-progress-svg { position:absolute; inset:0; display:block; width:100%; height:100%; pointer-events:none; }
+.level-arc { --level-progress:0deg; position:absolute; inset:9.5%; border-radius:50%; transform:rotate(220deg); background:conic-gradient(var(--mode-color) var(--level-progress),#292929 0 280deg,transparent 280deg); mask:radial-gradient(circle,transparent 72%,#000 73% 77%,transparent 78%); }
+.dynamic-level strong { position:absolute; top:43.2%; left:0; right:0; transform:translateY(-50%); text-align:center; font-size:clamp(34px,4vw,56px); line-height:.88; font-weight:400; }
+.dynamic-level>span { position:absolute; top:55.8%; left:0; right:0; color:#999; text-align:center; font-size:clamp(10px,1.4vw,19px); line-height:1; font-weight:400; }
+.level-time { position:absolute; left:27%; right:27%; bottom:10.2%; display:flex; align-items:center; justify-content:center; gap:8%; padding:4.2% 4%; border-radius:999px; background:#272727; font-size:clamp(10px,1.55vw,21px); font-weight:700; font-variant-numeric:tabular-nums; }
+.level-time i { color:var(--mode-color); font-style:normal; font-size:.8em; }
+.mini-timer { position:absolute; z-index:5; inset:0; display:block; width:100%; height:100%; pointer-events:none; }
+.mini-timer-text { fill:#fff; font-family:"Aeonik Soft Pro","Avenir Next","V3 Geist","Segoe UI",Arial,sans-serif; font-size:23px; font-weight:650; font-variant-numeric:tabular-nums; }
+.mini-timer-cleanup { fill:#000; }
+.menu-screen-svg { position:absolute; inset:0; display:block; width:100%; height:100%; }
+.menu-dots circle { fill:#555; }
+.menu-dots circle.active { fill:#fff; }
+.menu-screen-title { fill:#fff; font-family:"Aeonik Soft Pro","Avenir Next","V3 Geist","Segoe UI",Arial,sans-serif; font-size:30px; font-weight:400; }
+.menu-screen-estimate { fill:#929292; font-family:"Aeonik Soft Pro","Avenir Next","V3 Geist","Segoe UI",Arial,sans-serif; font-size:22px; font-weight:400; }
+.menu-screen-hint { fill:#8f8f8f; font-family:"Aeonik Soft Pro","Avenir Next","V3 Geist","Segoe UI",Arial,sans-serif; font-size:19px; font-weight:400; letter-spacing:-.2px; }
+.menu-hint-shine-text { font-family:"Aeonik Soft Pro","Avenir Next","V3 Geist","Segoe UI",Arial,sans-serif; font-size:19px; font-weight:400; letter-spacing:-.2px; }
+.success-time { position:absolute; z-index:3; left:29%; right:29%; bottom:10.2%; display:flex; align-items:center; justify-content:center; gap:8%; padding:4.2% 4%; border-radius:999px; color:#fff; background:#272727; font-size:clamp(10px,1.55vw,21px); font-weight:700; font-variant-numeric:tabular-nums; }
+.success-time i { color:var(--mode-color); font-style:normal; font-size:.8em; }
+.hold-ring { --progress:0deg; position:absolute; inset:9%; border-radius:50%; background:conic-gradient(var(--mode-color,#72b9ff) var(--progress),transparent 0); mask:radial-gradient(circle,transparent 68%,#000 69%); }
+.transition-screen { position:absolute; inset:0; color:#fff; background:#000; text-align:center; }
+.transition-ring { --progress:0deg; position:absolute; inset:9.5%; border-radius:50%; transform:rotate(220deg); background:conic-gradient(var(--mode-color) var(--progress),#292929 0 280deg,transparent 280deg); mask:radial-gradient(circle,transparent 72%,#000 73% 77%,transparent 78%); }
+.feedback-symbol { position:absolute; top:24%; left:50%; width:19.45%; aspect-ratio:1; transform:translateX(-50%); }
+.transition-screen p { position:absolute; top:50%; left:14%; right:14%; margin:0; font-size:clamp(13px,1.55vw,21px); font-weight:400; line-height:1.25; }
+.transition-screen>span { position:absolute; left:0; right:0; bottom:12%; color:#999; font-size:clamp(10px,1.35vw,18px); }
+.device-controls { position:absolute; left:53.7%; top:35.5%; width:32%; display:grid; grid-template-columns:repeat(3,1fr); gap:22px 26px; }
+.device-controls button { position:relative; display:flex; min-width:0; align-items:center; justify-content:center; padding:0; border:0; background:transparent; color:#fff; cursor:pointer; }
+.button-art { display:block; width:clamp(58px,6.2vw,88px); height:auto; pointer-events:none; filter:drop-shadow(0 1px 5px #7778); transition:transform .18s,filter .18s; }
+.device-controls button:hover .button-art { transform:scale(1.04); filter:drop-shadow(0 0 7px #fff8); }
+.device-controls button:active .button-art { transform:scale(.95); filter:drop-shadow(0 0 4px #fff5); }
+.device-controls button:disabled { opacity:.2; cursor:not-allowed; }
+.device-controls.is-leak-check button:disabled { opacity:.1; filter:saturate(0) brightness(.38); }
+.device-controls.is-leak-check .pause-control-button { opacity:1; }
+.device-controls.is-leak-check.solution-1 .pause-control-button .button-art { animation:leakPauseBreathing 2.4s cubic-bezier(.45,0,.55,1) infinite; }
+.device-controls.is-leak-check.solution-2 .pause-control-button .button-art { opacity:1; filter:brightness(1.18) drop-shadow(0 0 7px rgba(255,255,255,.62)); }
+@keyframes leakPauseBreathing { 0%,100% { opacity:.72; filter:brightness(.92) drop-shadow(0 0 3px rgba(255,255,255,.22)); } 50% { opacity:1; filter:brightness(1.12) drop-shadow(0 0 7px rgba(255,255,255,.48)); } }
+.status-toast { position:fixed; z-index:35; top:24px; left:50%; transform:translateX(-50%); display:flex; align-items:center; gap:9px; max-width:46vw; padding:10px 16px; border:1px solid #ffffff33; border-radius:999px; color:white; background:#202020e8; box-shadow:0 8px 24px #0002; font-size:12px; backdrop-filter:blur(12px); }
+.dot { width:7px; height:7px; border-radius:50%; background:#7b7b7b; }
+.dot.on { background:#66d28e; box-shadow:0 0 9px #66d28e; }
+.guide-panel { position:fixed; z-index:32; left:24px; bottom:22px; }
+.panel-toggle,.debug-toggle { border:1px solid #ddd; border-radius:12px; padding:11px 15px; background:#ffffffdc; color:#555; box-shadow:0 6px 20px #0000000d; cursor:pointer; backdrop-filter:blur(12px); }
+.guide-content { width:340px; margin-top:8px; padding:16px 18px; border:1px solid #deddd9; border-radius:18px; background:#ffffffec; box-shadow:0 16px 45px #00000012; backdrop-filter:blur(18px); }
+.guide-content h2 { margin:0 0 12px; font-size:14px; }
+.guide-grid { display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+.guide-grid b { color:#777; font-size:11px; }
+.guide-grid p { margin:6px 0 0; font-size:11px; line-height:1.45; }
+.debug-panel { position:fixed; z-index:32; right:clamp(10px,1.5vw,24px); bottom:clamp(10px,1.4vh,22px); width:min-content; max-width:calc(100vw - 20px); text-align:right; }
+.leak-demo-panel { position:fixed; z-index:33; top:92px; right:24px; text-align:right; }
+.leak-demo-toggle { border:1px solid #ef4c4e55; border-radius:999px; padding:12px 19px; color:#fff; background:#252525ee; box-shadow:0 8px 24px #0002; cursor:pointer; font-weight:650; backdrop-filter:blur(12px); }
+.leak-demo-toggle::before { content:""; display:inline-block; width:8px; height:8px; margin-right:8px; border-radius:50%; background:#ef4c4e; box-shadow:0 0 10px #ef4c4e88; }
+.debug-content { display:flex; flex-wrap:nowrap; justify-content:flex-end; gap:clamp(5px,.55vw,9px); width:max-content; max-width:min(calc(100vw - 40px),900px); overflow-x:auto; margin:clamp(6px,.7vh,10px) 0 0 auto; padding:clamp(7px,.8vw,13px); border:1px solid #ddd; border-radius:clamp(11px,1vw,16px); background:#ffffffed; scrollbar-width:thin; }
+.debug-content button { flex:0 0 auto; white-space:nowrap; }
+.debug-content button { border:1px solid #e4e2de; border-radius:clamp(7px,.65vw,10px); padding:clamp(8px,.75vw,12px) clamp(10px,1vw,16px); background:#f8f7f5; color:#555; cursor:pointer; font-size:clamp(11px,.88vw,14px); }
+.debug-content button:hover { background:#222; color:#fff; }
+@media (max-width:760px) {
+  .topbar { padding:14px; }
+  .brand-block h1 { font-size:14px; }
+  .solution-switch button { padding:8px 10px; font-size:12px; }
+  .status-toast { top:70px; max-width:90vw; }
+  .workspace { padding:100px 4px 190px; }
+  .device-wrap { width:min(98vw,calc((100vh - 270px)*1.3933)); }
+  .device-controls { gap:12px 16px; }
+  .button-art { width:clamp(42px,11vw,62px); }
+  .guide-panel { left:10px; bottom:10px; }
+  .debug-panel { right:10px; bottom:10px; }
+  .leak-demo-panel { top:118px; right:10px; }
+  .debug-content { width:max-content; max-width:calc(100vw - 20px); padding:10px; }
+  .guide-content { width:min(340px,calc(100vw - 20px)); }
+}
+@media (max-height:760px) {
+  .debug-panel { bottom:8px; }
+  .debug-toggle { padding:8px 11px; font-size:12px; }
+  .debug-content { margin-top:6px; padding:7px; }
+  .debug-content button { padding:7px 9px; font-size:11px; }
+}

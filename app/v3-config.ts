@@ -1,10 +1,12 @@
 export const V3_CONFIG = {
+  // Replace with the final public asset URL when the artwork is ready.
+  nightKeyAsset: null as string | null,
   longPressMs: 2000,
   powerOnProgressDelayMs: 250,
   powerOnPromptTimeoutMs: 5000,
   longPressActivationMs: 450,
-  finishHoldMs: 3000,
-  powerOffHoldMs: 3000,
+  finishHoldMs: 2000,
+  powerOffHoldMs: 2000,
   bootDurationMs: 2000,
   feedbackDurationMs: 900,
   standbyAfterMs: 3 * 60 * 1000,
@@ -18,7 +20,7 @@ export const V3_CONFIG = {
 };
 
 export type PumpMode = "stimulation" | "expression" | "powerPumping" | "milkBoost" | "cozyFlow" | "customized";
-export type ScreenState = "off" | "powerOnPrompt" | "boot" | "home" | "menu" | "pumping" | "paused" | "level" | "endingPump" | "finish" | "modeSuccess" | "poweringOff" | "standby" | "sealChecking" | "sealPassed" | "leakCheck";
+export type ScreenState = "bothLevel" | "nightLight" | "theme" | "off" | "powerOnPrompt" | "boot" | "home" | "menu" | "pumping" | "paused" | "level" | "endingPump" | "finish" | "modeSuccess" | "poweringOff" | "standby" | "sealChecking" | "sealPassed" | "leakCheck";
 
 export const MODE_COLORS: Record<PumpMode, string> = {
   stimulation: "#E2637E",

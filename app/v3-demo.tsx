@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { DialHint, DualLevelScreen, NightLightScreen, NightLightHoldScreen, IpArtwork } from "./v3-controls";
 import { MENU_ITEMS, MODE_COLORS, MODES, PumpMode, ScreenState, V3_CONFIG } from "./v3-config";
 
 const fixedImages: Partial<Record<ScreenState, string>> = {
@@ -11,7 +12,7 @@ const fixedImages: Partial<Record<ScreenState, string>> = {
 };
 const stateLabels: Record<ScreenState, string> = {
   off: "关机", powerOnPrompt: "开机提示", boot: "启动", home: "主页", menu: "菜单", pumping: "吸奶中", paused: "暂停",
-  level: "档位", endingPump: "结束中", standby: "待机", finish: "反馈", modeSuccess: "切换成功", poweringOff: "关机中",
+  level: "档位", bothLevel: "双侧档位", nightLight: "夜灯", theme: "皮肤选择", endingPump: "结束中", standby: "待机", finish: "反馈", modeSuccess: "切换成功", poweringOff: "关机中",
   sealChecking: "密封检测", sealPassed: "检测通过", leakCheck: "漏气排查",
 };
 const leakPages = [
@@ -243,6 +244,8 @@ function PumpScreenSvg({
   speedLevel,
   bluetoothConnected,
   leakFinal = false,
+  lightOffFeedback = false,
+  theme = "minimal",
 }: {
   state: "home" | "pumping" | "paused" | "sealChecking" | "sealPassed";
   mode: PumpMode;
@@ -252,17 +255,20 @@ function PumpScreenSvg({
   speedLevel: number;
   bluetoothConnected: boolean;
   leakFinal?: boolean;
+  lightOffFeedback?: boolean;
+  theme?: "minimal" | "ip";
 }) {
   const background = modeBackgrounds[mode];
   const isSealStatus = state === "sealChecking" || state === "sealPassed";
   const isPaused = state === "paused" || leakFinal;
   const isPumping = state === "pumping" || isSealStatus;
+  const showStartingHint = state === "pumping" && seconds < 5;
   const hint = isPaused ? "Press to resume" : "Press to start pumping";
   const sealHint = state === "sealChecking" ? "Checking seal..." : state === "sealPassed" ? "Seal check passed" : "";
   const displayTitle = modeTitles[mode];
 
   return (
-    <svg className={`pump-screen-svg pump-screen-svg-${state}${leakFinal ? " pump-screen-svg-leak-final" : ""}`} viewBox="0 0 432 432" role="img" aria-label={`${modeTitles[mode]} ${state}`}>
+    <svg className={`pump-screen-svg pump-screen-svg-${state}${leakFinal ? " pump-screen-svg-leak-final" : ""}${lightOffFeedback ? " pump-screen-svg-light-off" : ""}`} viewBox="0 0 432 432" role="img" aria-label={`${modeTitles[mode]} ${state}`}>
       <defs>
         <clipPath id={`screen-circle-${state}`}><circle cx="216" cy="216" r="176" /></clipPath>
         <linearGradient id="hint-shine-gradient" x1="-5%" y1="0" x2="45%" y2="0">
@@ -279,21 +285,26 @@ function PumpScreenSvg({
 
       <rect width="432" height="432" fill="#000" />
       <image href={background} x="40" y="40" width="352" height="352" preserveAspectRatio="xMidYMid slice" clipPath={`url(#screen-circle-${state})`} />
+      {theme === "ip" && !isSealStatus && <g clipPath={`url(#screen-circle-${state})`}><IpArtwork /></g>}
       <HeaderStatus connected={bluetoothConnected} />
       <text className="pump-svg-title" x="216" y="124" textAnchor="middle">{displayTitle}</text>
-      {((isPaused && !leakFinal) || state === "home") && <text className="pump-svg-hint" x="216" y="261" textAnchor="middle" style={{ fill: modeHintColors[mode] }}>{hint}</text>}
-      {((isPaused && !leakFinal) || state === "home") && <text className="pump-hint-shine-text" x="216" y="261" textAnchor="middle" style={{ fill: "url(#hint-shine-gradient)" }}>{hint}</text>}
+      {((isPaused && !leakFinal) || state === "home") && <text className="pump-svg-hint" x="216" y={theme === "ip" ? 366 : 261} textAnchor="middle" style={{ fill: modeHintColors[mode] }}>{hint}</text>}
+      {((isPaused && !leakFinal) || state === "home") && <text className="pump-hint-shine-text" x="216" y={theme === "ip" ? 366 : 261} textAnchor="middle" style={{ fill: "url(#hint-shine-gradient)" }}>{hint}</text>}
 
       {isPumping && <>
-        {!isSealStatus && <text className="pump-svg-time" x="216" y="226" textAnchor="middle">{formatTime(seconds)}</text>}
-        {!isSealStatus && <image className="pump-sequence-curve" href={modeAnimatedCurves[mode]} x="36" y="234" width="360" height="56" preserveAspectRatio="none" clipPath={`url(#screen-circle-${state})`} />}
+        {!isSealStatus && <text className="pump-svg-time" x="216" y={lightOffFeedback ? "213" : "226"} textAnchor="middle">{formatTime(seconds)}</text>}
+        {!isSealStatus && !showStartingHint && (lightOffFeedback ? <image className="pump-sequence-curve" href={mode === "stimulation" ? "/assets/v3-pro/figma-light-off/pump-curve.svg" : modeCurves[mode]} x="38.768" y="226" width="354.266" height="56" preserveAspectRatio="none" clipPath={`url(#screen-circle-${state})`} /> : <image className="pump-sequence-curve" href={modeAnimatedCurves[mode]} x="36" y="234" width="360" height="56" preserveAspectRatio="none" clipPath={`url(#screen-circle-${state})`} />)}
+        {showStartingHint && <>
+          <text className="pump-svg-hint" x="216" y="261" textAnchor="middle" style={{ fill: modeHintColors[mode] }}>Turn knob to adjust both sides&apos; level</text>
+          <text className="pump-hint-shine-text" x="216" y="261" textAnchor="middle" style={{ fill: "url(#hint-shine-gradient)" }}>Turn knob to adjust both sides&apos; level</text>
+        </>}
       </>}
 
       {isPaused && <>
         <image className="pause-curve-svg" href={modeCurves[mode]} x="40" y="184" width="352" height="54" preserveAspectRatio="none" clipPath={`url(#screen-circle-${state})`} opacity=".42" />
         <image href="/assets/v5/pump/暂停页暂停UI.svg" x="187" y="172" width="58" height="62" />
       </>}
-      {state === "home" && <>
+      {state === "home" && theme !== "ip" && <>
         <text className="pump-svg-time" x="216" y="226" textAnchor="middle">{formatTime(seconds)}</text>
       </>}
 
@@ -320,7 +331,7 @@ function PumpScreenSvg({
 
       <g className="pump-svg-values">
           <text x="154" y="327" textAnchor="middle">L{leftLevel}</text>
-          <image href="/assets/v5/icon/speed.svg" x="194" y="308" width="20" height="20" />
+          <image href={lightOffFeedback ? "/assets/v3-pro/figma-light-off/speed-icon.svg" : "/assets/v5/icon/speed.svg"} x="194" y={lightOffFeedback ? "306" : "308"} width={lightOffFeedback ? "24" : "20"} height={lightOffFeedback ? "24" : "20"} />
           <text x="226" y="327" textAnchor="middle">{speedLevel}</text>
           <text x="278" y="327" textAnchor="middle">R{rightLevel}</text>
       </g>
@@ -376,8 +387,17 @@ function SpeedProgress({ level, color }: { level: number; color: string }) {
   </svg>;
 }
 
-function MiniTimer({ seconds, status, success = false }: { seconds: number; status: "idle" | "running" | "paused"; success?: boolean }) {
+function MiniTimer({ seconds, status, success = false, dual = false }: { seconds: number; status: "idle" | "running" | "paused"; success?: boolean; dual?: boolean }) {
   const isRunning = status === "running";
+  if (dual) return <svg className="mini-timer mini-timer-dual" viewBox="0 0 432 432" role="img" aria-label={`${isRunning ? "吸奶中" : "已暂停"} ${formatTime(seconds)}`}>
+    <image href="/assets/v5/timer/Union.svg" x="110" y="329" width="212" height="63" />
+    <foreignObject x="110" y="329" width="212" height="54">
+      <div className="dual-timer-content">
+        <img src={isRunning ? "/assets/v5/timer/State=Pause.svg" : "/assets/v5/timer/State=Play.svg"} width="18" height="19" alt="" />
+        <span>{formatTime(seconds)}</span>
+      </div>
+    </foreignObject>
+  </svg>;
   return <svg className={`mini-timer${success ? " mini-timer-success" : ""}`} viewBox="0 0 432 432" role="img" aria-label={`${isRunning ? "吸奶中" : "已暂停"} ${formatTime(seconds)}`}>
     {success && <rect className="mini-timer-cleanup" x="100" y="315" width="232" height="97" />}
     <image href="/assets/v5/timer/Union.svg" x="107" y="329" width="218" height="64.6" />
@@ -430,16 +450,43 @@ export default function DeviceDemo() {
   const idleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const standbyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const clickLock = useRef(false);
-  const pauseLongPressTriggered = useRef(false);
-  const pausePointerTracking = useRef(false);
-  const suppressPauseClick = useRef(false);
+  const [theme, setTheme] = useState<"minimal" | "ip">("minimal");
+  const themeChosen = useRef(false);
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("v3pro.theme.v1");
+      if (saved === "minimal" || saved === "ip") { setTheme(saved); themeChosen.current = true; }
+      const savedLevel = Number(localStorage.getItem("v3pro.night-level.v1"));
+      if (savedLevel >= 1 && savedLevel <= 3) setNightLevel(savedLevel);
+    } catch { /* Storage may be unavailable in private browsing. */ }
+  }, []);
+  const [nightOn, setNightOn] = useState(false);
+  const [nightLevel, setNightLevel] = useState(2);
+  const [ambientLight, setAmbientLight] = useState(35);
+  useEffect(() => {
+    try { localStorage.setItem("v3pro.night-level.v1", String(nightLevel)); } catch { /* Keep session state when storage is unavailable. */ }
+  }, [nightLevel]);
+  const [nightAuto, setNightAuto] = useState(true);
+  const [lightFeedbackSequence, setLightFeedbackSequence] = useState(0);
+  const [lightFeedback, setLightFeedback] = useState<"on" | "off" | null>(null);
+  const [nightClosing, setNightClosing] = useState(false);
+  const [nightHoldProgress, setNightHoldProgress] = useState(0);
+  const [nightDimmed, setNightDimmed] = useState(false);
+  const [levelLimit, setLevelLimit] = useState(false);
+  const levelEntry = useRef({ left: leftLevel, right: rightLevel });
+  const nightReturn = useRef<ScreenState>("off");
+  const nightTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const nightHeld = useRef(false);
+  const nightFirstOn = useRef(true);
+  const screenRef = useRef<HTMLDivElement>(null);
   const wheelAccumulator = useRef(0);
   const wheelGestureLocked = useRef(false);
   const wheelGestureEndTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const isPowered = state !== "off" && state !== "powerOnPrompt" && state !== "poweringOff";
+  const isPowered = !(state === "nightLight" && nightReturn.current === "off") && state !== "off" && state !== "powerOnPrompt" && state !== "poweringOff";
   const isRunning = pumpStatus === "running";
-  const deviceControlsLocked = !isPowered || state === "boot" || state === "leakCheck";
+  const deviceControlsLocked = !isPowered || state === "boot" || state === "theme" || state === "leakCheck";
   const modeColor = MODE_COLORS[mode];
+  const lampIntensity = nightAuto ? .88 - ambientLight / 100 * .56 : [0, .32, .62, 1][nightLevel];
 
   const resetIdle = useCallback(() => {
     if (!isPowered || state === "boot" || state === "standby" || state === "endingPump") return;
@@ -460,7 +507,7 @@ export default function DeviceDemo() {
       if (standbyTimer.current) clearTimeout(standbyTimer.current);
       return;
     }
-    standbyTimer.current = setTimeout(() => setState("off"), V3_CONFIG.powerOffAfterMs);
+    standbyTimer.current = setTimeout(() => { setState("off"); setPumpStatus("idle"); setNightOn(false); }, V3_CONFIG.powerOffAfterMs);
     return () => { if (standbyTimer.current) clearTimeout(standbyTimer.current); };
   }, [state]);
   useEffect(() => {
@@ -509,28 +556,29 @@ export default function DeviceDemo() {
   }, [previousState, state]);
 
   const showTemporary = useCallback((nextMode: PumpMode) => {
-    if (!isPowered || state === "boot" || state === "endingPump" || state === "leakCheck") return;
-    if (nextMode === mode) return;
+    if (!isPowered || ["boot", "endingPump", "poweringOff", "leakCheck", "theme"].includes(state)) return;
     if (state === "standby") { wake(); return; }
-    if (modeSwitchTimer.current) clearTimeout(modeSwitchTimer.current);
-    setState("modeSuccess");
-    setToast(`${modeTitles[nextMode]} · Switch Successfully`);
-    modeSwitchTimer.current = setTimeout(() => {
-      setMode(nextMode);
-      setState(pumpStatus === "running" ? "pumping" : pumpStatus === "paused" ? "paused" : "home");
-      modeSwitchTimer.current = null;
-    }, V3_CONFIG.feedbackDurationMs);
-  }, [isPowered, mode, pumpStatus, state, wake]);
+    setMode(nextMode);
+    if (pumpStatus === "idle") {
+      setSeconds(0);
+      setState("home");
+      setToast(`${modeTitles[nextMode]} · 已选择，点按圆盘开始吸奶`);
+      return;
+    }
+    setPumpStatus("running");
+    setState("pumping");
+    setToast(`${modeTitles[nextMode]} · 已启动吸奶`);
+  }, [isPowered, pumpStatus, state, wake]);
 
   const togglePump = useCallback(() => {
-    if (!isPowered || state === "boot" || state === "endingPump" || state === "leakCheck") return;
+    if (!isPowered || state === "boot" || state === "theme" || state === "endingPump" || state === "leakCheck") return;
     if (state === "standby") { wake("home"); return; }
     if (pumpStatus === "running") {
       setPumpStatus("paused"); setState("paused"); setToast("吸奶已暂停");
     } else if (pumpStatus === "paused") {
       setPumpStatus("running"); setState("pumping"); setToast("继续吸奶");
     } else {
-      setSeconds(0); setPumpStatus("running"); setState("sealChecking"); setToast("Checking seal...");
+      setSeconds(0); setPumpStatus("running"); setState("pumping"); setToast("已开始吸奶");
     }
   }, [isPowered, pumpStatus, seconds, state, wake]);
 
@@ -544,7 +592,7 @@ export default function DeviceDemo() {
       }
       setPumpStatus("running");
       setState("pumping");
-      setToast("漏气排查已暂停，继续吸奶");
+      setToast("漏气排查完成，继续吸奶");
       return;
     }
     togglePump();
@@ -557,10 +605,10 @@ export default function DeviceDemo() {
   }, [pumpStatus]);
 
   const openLevel = useCallback((side: "left" | "right" | "speed") => {
-    if (!isPowered || state === "boot" || state === "endingPump" || state === "leakCheck") return;
+    if (!isPowered || state === "boot" || state === "theme" || state === "endingPump" || state === "leakCheck") return;
     if (levelConfirmTimer.current) clearTimeout(levelConfirmTimer.current);
     levelConfirmTimer.current = null;
-    if (state !== "level") {
+    if (state !== "level" && state !== "bothLevel") {
       levelReturnState.current = state === "menu" && pumpStatus === "running"
         ? "pumping"
         : state === "standby"
@@ -568,22 +616,27 @@ export default function DeviceDemo() {
         : state;
     }
     if (state === "standby") { wake(); return; }
+    if (state === "level" && activeControl === side) {
+      setState(levelReturnState.current); return;
+    }
+    levelEntry.current = { left: leftLevel, right: rightLevel };
+    setLevelLimit(false);
     setActiveControl(side); setState("level");
     setToast(side === "speed" ? "韵律速度调节" : `${side === "left" ? "左侧" : "右侧"}档位调节`);
-  }, [isPowered, pumpStatus, state, wake]);
+  }, [activeControl, leftLevel, rightLevel, isPowered, pumpStatus, state, wake]);
 
   const confirmLevel = useCallback((automatic = false) => {
     if (levelConfirmTimer.current) clearTimeout(levelConfirmTimer.current);
     levelConfirmTimer.current = null;
     setState(levelReturnState.current);
     const label = activeControl === "left" ? "左侧档位" : activeControl === "right" ? "右侧档位" : "韵律速度";
-    setToast(`${label}已${automatic ? "自动" : ""}确认`);
-  }, [activeControl]);
+    setToast(`${state === "bothLevel" ? "双侧档位" : label}已${automatic ? "自动" : ""}确认`);
+  }, [activeControl, state]);
 
   useEffect(() => {
-    if (state !== "level") return;
+    if (state !== "level" && state !== "bothLevel") return;
     if (levelConfirmTimer.current) clearTimeout(levelConfirmTimer.current);
-    levelConfirmTimer.current = setTimeout(() => confirmLevel(true), 3000);
+    levelConfirmTimer.current = setTimeout(() => confirmLevel(true), 5000);
     return () => {
       if (levelConfirmTimer.current) clearTimeout(levelConfirmTimer.current);
       levelConfirmTimer.current = null;
@@ -594,7 +647,7 @@ export default function DeviceDemo() {
     if (levelConfirmTimer.current) clearTimeout(levelConfirmTimer.current);
   }, []);
   useEffect(() => {
-    if (state !== "level" && levelConfirmTimer.current) {
+    if (state !== "level" && state !== "bothLevel" && levelConfirmTimer.current) {
       clearTimeout(levelConfirmTimer.current);
       levelConfirmTimer.current = null;
     }
@@ -603,30 +656,97 @@ export default function DeviceDemo() {
     if (modeSwitchTimer.current) clearTimeout(modeSwitchTimer.current);
   }, []);
   useEffect(() => {
-    const keepDemoFixed = (event: WheelEvent) => event.preventDefault();
-    window.addEventListener("wheel", keepDemoFixed, { passive: false });
+    const screen = screenRef.current;
+    const preventScreenScroll = (event: WheelEvent) => event.preventDefault();
+    screen?.addEventListener("wheel", preventScreenScroll, { passive: false });
     return () => {
-      window.removeEventListener("wheel", keepDemoFixed);
+      screen?.removeEventListener("wheel", preventScreenScroll);
       if (wheelGestureEndTimer.current) clearTimeout(wheelGestureEndTimer.current);
     };
   }, []);
 
+  useEffect(() => {
+    if (!lightFeedback) return;
+    const timer = setTimeout(() => setLightFeedback(null), 3000);
+    return () => clearTimeout(timer);
+  }, [lightFeedback, lightFeedbackSequence]);
+
+  useEffect(() => {
+    if (state !== "nightLight" || nightClosing || nightDimmed) return;
+    const timer = setTimeout(() => {
+      if (nightReturn.current === "off") setNightDimmed(true);
+      else setState(nightReturn.current);
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [state, nightLevel, nightAuto, nightClosing, nightDimmed]);
+
+  useEffect(() => () => {
+    if (nightTimer.current) clearInterval(nightTimer.current);
+    if (holdTimer.current) clearInterval(holdTimer.current);
+    if (transitionTimer.current) clearInterval(transitionTimer.current);
+  }, []);
+
+  const toggleNight = useCallback(() => {
+    if (nightHeld.current || ["boot", "poweringOff", "endingPump", "theme"].includes(state)) return;
+    if (!nightOn) {
+      setNightOn(true);
+      setNightAuto(nightFirstOn.current || nightLevel === 1);
+      nightFirstOn.current = false;
+    }
+    if (pumpStatus === "running") { setState("pumping"); setLightFeedback("on"); setLightFeedbackSequence(value => value + 1); return; }
+    if (state !== "nightLight") nightReturn.current = state === "standby" ? "home" : state === "powerOnPrompt" ? "off" : state;
+    setNightDimmed(false);
+    setState("nightLight");
+    setToast("夜灯：滚轮调整亮度，长按夜灯键关闭");
+  }, [nightLevel, nightOn, pumpStatus, state]);
+
+  const stopNightHold = useCallback(() => {
+    if (nightTimer.current) clearInterval(nightTimer.current);
+    nightTimer.current = null;
+    setNightClosing(false); setNightHoldProgress(0);
+    setTimeout(() => { nightHeld.current = false; }, 250);
+  }, []);
+
+  const beginNightHold = useCallback(() => {
+    if (!nightOn || ["boot", "poweringOff", "endingPump", "theme"].includes(state)) return;
+    const start = Date.now();
+    nightHeld.current = false;
+    setNightDimmed(false);
+    nightTimer.current = setInterval(() => {
+      const elapsed = Date.now() - start;
+      if (elapsed > 350) {
+        nightHeld.current = true;
+        if (pumpStatus !== "running") { setNightClosing(true); setNightHoldProgress(Math.min(100, elapsed / 2000 * 100)); }
+      }
+      if (elapsed >= 2000) {
+        if (nightTimer.current) clearInterval(nightTimer.current);
+        nightTimer.current = null;
+        setNightOn(false); setNightClosing(false); setNightHoldProgress(0); setNightDimmed(false);
+        setToast("夜灯已关闭，已记住上次亮度");
+        if (pumpStatus === "running") { setState("pumping"); setLightFeedback("off"); setLightFeedbackSequence(value => value + 1); }
+        else if (state !== "nightLight") { nightReturn.current = state === "standby" ? "home" : state; setNightDimmed(false); setState("nightLight"); }
+      }
+    }, 40);
+  }, [nightOn, pumpStatus, state]);
+
   const startPowerOn = useCallback(() => {
-    if (state !== "off" && state !== "powerOnPrompt") return;
+    if (state !== "off" && state !== "powerOnPrompt" && !(state === "nightLight" && nightReturn.current === "off")) return;
+    nightFirstOn.current = true;
+    setNightOn(false);
     setState("boot"); setToast("设备启动中…");
-    setTimeout(() => { setState("home"); setToast("Stimulation 默认主页"); }, V3_CONFIG.bootDurationMs);
+    setTimeout(() => { setState(themeChosen.current ? "home" : "theme"); setToast(themeChosen.current ? "Stimulation 默认主页" : "滚轮选择皮肤，点按圆盘确认"); }, V3_CONFIG.bootDurationMs);
   }, [state]);
 
   const handleWheel = useCallback((event: React.WheelEvent) => {
     event.preventDefault();
     if (state === "standby") { wake("home"); return; }
     const gestureDelta = Math.abs(event.deltaY) >= Math.abs(event.deltaX) ? event.deltaY : -event.deltaX;
+    if (wheelGestureLocked.current) return;
     if (wheelGestureEndTimer.current) clearTimeout(wheelGestureEndTimer.current);
     wheelGestureEndTimer.current = setTimeout(() => {
       wheelGestureLocked.current = false;
       wheelAccumulator.current = 0;
-    }, 380);
-    if (wheelGestureLocked.current) return;
+    }, 120);
     wheelAccumulator.current += gestureDelta;
     if (Math.abs(wheelAccumulator.current) < (state === "level" ? 18 : 22)) return;
     const direction = wheelAccumulator.current > 0 ? 1 : -1;
@@ -637,35 +757,54 @@ export default function DeviceDemo() {
       setToast("使用滚轮或触控板切换漏气排查页面");
       return;
     }
-    if (state === "paused" || state === "home" || state === "pumping") {
-      const currentIndex = MENU_ITEMS.findIndex((item) => item.mode === mode);
-      setMenuIndex(((currentIndex >= 0 ? currentIndex : 0) + direction + MENU_ITEMS.length) % MENU_ITEMS.length);
-      setState("menu");
+    if (state === "theme") { setTheme(value => value === "minimal" ? "ip" : "minimal"); return; }
+    if (state === "nightLight") {
+      if (!nightOn) return;
+      setNightDimmed(false);
+      const next = Math.min(3, Math.max(1, (nightAuto ? 1 : nightLevel) + direction));
+      setNightAuto(next === 1);
+      setNightLevel(next);
       return;
     }
-    if (state === "menu") { setMenuIndex((value) => (value + direction + MENU_ITEMS.length) % MENU_ITEMS.length); return; }
-    if (state === "level") {
-      const update = (value: number) => Math.min(V3_CONFIG.maxLevel, Math.max(V3_CONFIG.minLevel, value + direction));
-      if (activeControl === "left") setLeftLevel(update);
-      else if (activeControl === "right") setRightLevel(update);
-      else setSpeedLevel((value) => Math.min(V3_CONFIG.maxSpeed, Math.max(1, value + direction)));
-      if (levelConfirmTimer.current) clearTimeout(levelConfirmTimer.current);
-      levelConfirmTimer.current = setTimeout(() => confirmLevel(true), 3000);
+    if (state === "paused" || state === "home" || state === "pumping") {
+      levelEntry.current = { left: leftLevel, right: rightLevel };
+      levelReturnState.current = state;
+      setLevelLimit(false); setState("bothLevel");
+      setToast("双侧吸力：滚轮向下增加、向上减少；点按圆盘确认");
+      return;
     }
-  }, [activeControl, confirmLevel, mode, state, wake]);
+    if (state === "level" || state === "bothLevel") {
+      const limit = (value: number, initial: number) => Math.min(V3_CONFIG.maxLevel, initial + 3, Math.max(V3_CONFIG.minLevel, value + direction));
+      const left = limit(leftLevel, levelEntry.current.left);
+      const right = limit(rightLevel, levelEntry.current.right);
+      const hit = direction > 0 && ((state === "bothLevel" || activeControl === "left") && leftLevel >= levelEntry.current.left + 3 || (state === "bothLevel" || activeControl === "right") && rightLevel >= levelEntry.current.right + 3);
+      setLevelLimit(hit);
+      if (state === "bothLevel" || activeControl === "left") setLeftLevel(left);
+      if (state === "bothLevel" || activeControl === "right") setRightLevel(right);
+      if (state === "level" && activeControl === "speed") setSpeedLevel(value => Math.min(V3_CONFIG.maxSpeed, Math.max(1, value + direction)));
+      if (levelConfirmTimer.current) clearTimeout(levelConfirmTimer.current);
+      levelConfirmTimer.current = setTimeout(() => confirmLevel(true), 5000);
+    }
+  }, [activeControl, confirmLevel, leftLevel, rightLevel, nightAuto, nightLevel, nightOn, state, wake]);
 
   const handleScreenClick = useCallback(() => {
     if (clickLock.current) return;
     if (state === "off") { setState("powerOnPrompt"); setPowerOnPromptActivity((value) => value + 1); setToast("长按圆屏 2 秒即可开机"); return; }
     if (state === "powerOnPrompt") { setPowerOnPromptActivity((value) => value + 1); setToast("长按圆屏 2 秒即可开机"); return; }
     if (state === "boot") return;
+    if (state === "theme") {
+      themeChosen.current = true;
+      try { localStorage.setItem("v3pro.theme.v1", theme); } catch { /* Session selection still applies. */ }
+      setState("home"); setToast(`已选择 ${theme === "minimal" ? "Minimal" : "IP"} 皮肤`); return;
+    }
     if (state === "standby") { wake(); return; }
-    if (state === "level") { confirmLevel(false); return; }
-    if (state === "leakCheck") {
-      if (leakStep === 3) return;
-      if (leakStep < 3) { setToast("请使用鼠标滚轮或触控板切换漏气排查页面"); }
+    if (state === "level" || state === "bothLevel") { confirmLevel(false); return; }
+    if (state === "nightLight") {
+      if (nightReturn.current === "off") setNightDimmed(true);
+      else setState(nightReturn.current);
       return;
     }
+    if (state === "leakCheck") { handlePauseButton(); return; }
     if (state === "sealChecking" || state === "sealPassed") { togglePump(); return; }
     if (state === "menu") {
       const selectedMode = MENU_ITEMS[menuIndex].mode;
@@ -678,7 +817,7 @@ export default function DeviceDemo() {
     }
     if (state === "finish" || state === "modeSuccess" || state === "endingPump" || state === "poweringOff") return;
     togglePump();
-  }, [confirmLevel, leakStep, menuIndex, mode, pumpStatus, showTemporary, state, togglePump, wake]);
+  }, [confirmLevel, handlePauseButton, menuIndex, mode, pumpStatus, showTemporary, state, theme, togglePump, wake]);
 
   const clearTransition = useCallback(() => {
     if (transitionTimer.current) clearInterval(transitionTimer.current);
@@ -701,18 +840,9 @@ export default function DeviceDemo() {
       setTransitionProgress(Math.min(100, elapsed / duration * 100));
       if (elapsed >= duration) {
         clearTransition();
-        if (kind === "finish") {
-          setPumpStatus("idle");
-          setState("finish");
-          setSeconds(0);
-          setToast("结束成功，返回当前吸奶方式主页");
-          setTimeout(() => setState("home"), V3_CONFIG.feedbackDurationMs);
-        } else {
-          setPumpStatus("idle");
-          setState("off");
-          setSeconds(0);
-          setToast("长按圆屏 2 秒开机");
-        }
+        setPumpStatus("idle"); setState("off"); setNightOn(false);
+        setSeconds(0); setLightFeedback(null);
+        setToast("吸奶已结束，设备已关机");
       }
     }, 40);
   }, [clearTransition, state]);
@@ -734,10 +864,9 @@ export default function DeviceDemo() {
   }, [clearTransition, state, transitionKind]);
 
   const beginHold = useCallback(() => {
-    if (!(["off", "powerOnPrompt", "home", "paused", "pumping", "menu", "level", "sealChecking", "sealPassed", "leakCheck"] as ScreenState[]).includes(state)) return;
-    if (state === "leakCheck" && leakStep === 3) return;
+    if (!(["off", "powerOnPrompt", "home", "paused", "pumping", "menu", "level", "bothLevel", "nightLight", "sealChecking", "sealPassed", "leakCheck"] as ScreenState[]).includes(state)) return;
     clickLock.current = false;
-    if (state !== "off" && state !== "powerOnPrompt") {
+    if (state !== "off" && state !== "powerOnPrompt" && !(state === "nightLight" && nightReturn.current === "off")) {
       holdStart.current = Date.now();
       holdTimer.current = setInterval(() => {
         if (Date.now() - holdStart.current < V3_CONFIG.longPressActivationMs) return;
@@ -756,68 +885,29 @@ export default function DeviceDemo() {
       const visibleDuration = V3_CONFIG.longPressMs - V3_CONFIG.powerOnProgressDelayMs;
       setHoldProgress(Math.min(100, visibleElapsed / visibleDuration * 100));
       if (elapsed >= V3_CONFIG.longPressMs) {
-        clickLock.current = true; stopHold();
-        setTimeout(() => { clickLock.current = false; }, 250);
+        clickLock.current = true;
+        if (holdTimer.current) clearInterval(holdTimer.current);
+        holdTimer.current = null; setHoldProgress(0);
         startPowerOn();
       }
     }, 40);
   }, [beginTransitionHold, leakStep, pumpStatus, startPowerOn, state, stopHold]);
 
-  const beginPauseButtonHold = useCallback(() => {
-    if (pumpStatus === "idle" || state === "endingPump" || state === "poweringOff") return;
-    if (state === "leakCheck" && leakStep < 3) return;
-    pausePointerTracking.current = true;
-    pauseLongPressTriggered.current = false;
-    suppressPauseClick.current = false;
-    holdStart.current = Date.now();
-    if (holdTimer.current) clearInterval(holdTimer.current);
-    holdTimer.current = setInterval(() => {
-      if (Date.now() - holdStart.current < V3_CONFIG.longPressActivationMs) return;
-      if (holdTimer.current) clearInterval(holdTimer.current);
-      holdTimer.current = null;
-      pauseLongPressTriggered.current = true;
-      suppressPauseClick.current = true;
-      beginTransitionHold("finish");
-    }, 40);
-  }, [beginTransitionHold, leakStep, pumpStatus, state]);
-
-  const finishPauseButtonHold = useCallback((resumeOnShortPress: boolean) => {
-    if (!pausePointerTracking.current) return;
-    pausePointerTracking.current = false;
-    if (holdTimer.current) clearInterval(holdTimer.current);
-    holdTimer.current = null;
-    const wasLongPress = pauseLongPressTriggered.current;
-    suppressPauseClick.current = true;
-    if (wasLongPress) {
-      stopHold();
-    } else if (resumeOnShortPress) {
-      handlePauseButton();
-    }
-    setTimeout(() => {
-      suppressPauseClick.current = false;
-      pauseLongPressTriggered.current = false;
-    }, 250);
-  }, [handlePauseButton, stopHold]);
-
-  const handlePauseControlClick = useCallback(() => {
-    if (suppressPauseClick.current) return;
-    handlePauseButton();
-  }, [handlePauseButton]);
-
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.repeat) return;
       const key = event.key.toLowerCase();
+      if (event.target instanceof HTMLElement && event.target.closest("input,select,textarea")) return;
       if (key === "q") showTemporary("stimulation");
       if (key === "w") showTemporary("expression");
       if (key === "e") openLevel("speed");
       if (key === "a") openLevel("left");
-      if (key === "s") togglePump();
+      if (key === "s") handleScreenClick();
       if (key === "d") openLevel("right");
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [openLevel, showTemporary, togglePump]);
+  }, [openLevel, showTemporary, handleScreenClick]);
 
   const screenImage = useMemo(() => {
     if (state === "home" || state === "pumping" || state === "paused" || state === "level" || state === "endingPump" || state === "poweringOff" || state === "sealChecking" || state === "sealPassed" || state === "leakCheck") return undefined;
@@ -834,7 +924,7 @@ export default function DeviceDemo() {
     modeSwitchTimer.current = null;
     stopHold(); clearTransition(); setState("off"); setMode(V3_CONFIG.defaultMode); setLeftLevel(V3_CONFIG.defaultLevel);
     setRightLevel(V3_CONFIG.defaultLevel); setSpeedLevel(V3_CONFIG.defaultSpeed); setSeconds(0); setPumpStatus("idle"); setMenuIndex(0); setToast("长按圆屏 2 秒开机");
-    setLeakStep(0); setBluetoothConnected(false);
+    setLeakStep(0); setBluetoothConnected(false); setNightOn(false); setLightFeedback(null); setLevelLimit(false); stopNightHold();
   };
 
   const jumpToDemoState = (target: "home" | "pumping" | "paused" | "sealChecking" | "leakCheck" | "standby" | "off") => {
@@ -867,48 +957,71 @@ export default function DeviceDemo() {
         </div>
       </header>
 
-      <section className="workspace" onWheel={handleWheel}>
+      <section className="workspace">
         <div className="device-wrap">
+          <div className={`night-light-halo${nightOn ? " is-on" : ""}`} style={{ "--lamp-intensity": lampIntensity } as React.CSSProperties} aria-hidden="true" />
+          <img className={`night-light-rim${nightOn ? " is-on" : ""}`} style={{ "--lamp-intensity": lampIntensity } as React.CSSProperties} src="/assets/device/整机UI-不包含按键.png" alt="" aria-hidden="true" draggable={false} />
           <img className="device-image" src="/assets/device/整机UI-不包含按键.png" alt="V3 吸奶器主机" draggable={false} />
-          <div className={`round-screen state-${state}`} style={{ "--mode-color": modeColor } as React.CSSProperties} onClick={handleScreenClick}
-            onDoubleClick={() => setToast("双击动作已保留，当前未绑定功能")} onPointerDown={beginHold}
+          <div className={`night-light-source${nightOn ? " is-on" : ""}`} style={{ "--lamp-intensity": lampIntensity } as React.CSSProperties} aria-hidden="true" />
+          <div ref={screenRef} onWheel={handleWheel} className={`round-screen state-${state}${state === "leakCheck" ? " leak-circle-control" : ""}`} style={{ "--mode-color": modeColor } as React.CSSProperties} onClick={handleScreenClick}
+            onPointerDown={beginHold}
             onPointerUp={stopHold} onPointerCancel={stopHold} onPointerLeave={stopHold} onContextMenu={(e) => e.preventDefault()}
-            role="button" tabIndex={0} aria-label="圆屏主按钮操作区域">
+            role="button" tabIndex={0} onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleScreenClick(); } }} aria-label="圆盘：点按开始暂停或确认，长按两秒关机，滚轮调节">
             {screenImage && <img src={screenImage} alt="" draggable={false} />}
             {state === "standby" && <StandbyScreen />}
             {state === "menu" && <MenuScreen index={menuIndex} showHint={pumpStatus === "idle"} />}
             {state === "modeSuccess" && <SuccessTimerArea seconds={seconds} status={pumpStatus} />}
             {state === "leakCheck" && leakStep < 3 && <LeakInspectionScreen key={`leak-step-${leakStep}`} step={leakStep} />}
             {state === "leakCheck" && leakStep === 3 && <LeakFinalAnimation key={`leak-final-${mode}`} />}
-            {(state === "home" || state === "pumping" || state === "paused" || state === "sealChecking" || state === "sealPassed") && <PumpScreenSvg key={`pump-${state}-${mode}`} state={state} mode={mode} seconds={seconds} leftLevel={leftLevel} rightLevel={rightLevel} speedLevel={speedLevel} bluetoothConnected={bluetoothConnected} />}
+            {(state === "home" || state === "pumping" || state === "paused" || state === "sealChecking" || state === "sealPassed") && <PumpScreenSvg key={`pump-${state}-${mode}`} state={state} mode={mode} seconds={seconds} leftLevel={leftLevel} rightLevel={rightLevel} speedLevel={speedLevel} bluetoothConnected={bluetoothConnected} lightOffFeedback={lightFeedback === "off"} theme={theme} />}
+            {state === "theme" && <div className="theme-picker">
+              <h2>Theme Settings</h2><p>Turn the knob to select a theme</p>
+              <div className="theme-options">{(["minimal", "ip"] as const).map(value => <div key={value} className={theme === value ? "selected" : ""}>
+                <div className="theme-preview"><PumpScreenSvg state="home" mode="stimulation" seconds={0} leftLevel={leftLevel} rightLevel={rightLevel} speedLevel={speedLevel} bluetoothConnected={bluetoothConnected} theme={value} /></div>
+                <span>{theme === value ? "●" : "○"} {value === "minimal" ? "Minimal" : "IP"}</span>
+              </div>)}</div><DialHint text="Press to confirm" shine />
+            </div>}
+            {state === "bothLevel" && <>
+              <DualLevelScreen left={leftLevel} right={rightLevel} color={modeColor} limited={levelLimit} />
+              {pumpStatus === "idle" ? <DialHint shine /> : <MiniTimer seconds={seconds} status={pumpStatus} dual />}
+            </>}
+            {state === "nightLight" && <NightLightScreen on={nightOn} auto={nightAuto} level={nightLevel} dimmed={nightDimmed} color={modeColor} />}
+            {lightFeedback && (state === "pumping" || state === "paused") && <div className={`light-feedback light-${lightFeedback}`} role="status"><svg viewBox="0 0 432 432" aria-label={`Light ${lightFeedback}`}>
+              {lightFeedback === "off" ? <>
+                <image href="/assets/v3-pro/figma-light-off/dim-pumping-screen.svg" x="40" y="40" width="352" height="352" />
+                <image href="/assets/v3-pro/figma-light-off/light-off-icon.svg" x="196" y="175" width="40" height="40" />
+              </> : <image href="/assets/v3-pro/controls/light-on-icon.svg" x="196" y="188" width="40" height="40" />}
+              <text x="216" y={lightFeedback === "off" ? "250" : "264"} textAnchor="middle">Light {lightFeedback}</text>
+            </svg></div>}
+            {nightClosing && pumpStatus !== "running" && <NightLightHoldScreen progress={nightHoldProgress} />}
             {state === "level" && <div className="dynamic-level">
               {activeControl === "speed"
                 ? <SpeedProgress level={speedLevel} color={modeColor} />
                 : <ArcProgress percent={currentLevel / V3_CONFIG.maxLevel * 100} color={modeColor} />}
               <strong>{currentLevel}</strong>
+              {levelLimit && <em className="level-limit">For safety,<br />Up to 3 levels at a time.</em>}
               <span>{activeControl === "left" ? "Left Level" : activeControl === "right" ? "Right Level" : "Speed"}</span>
-              {pumpStatus !== "idle" && <MiniTimer seconds={seconds} status={pumpStatus} />}
+              {pumpStatus === "idle" ? <DialHint shine /> : <MiniTimer seconds={seconds} status={pumpStatus} />}
             </div>}
             {state === "menu" && pumpStatus !== "idle" && <MiniTimer seconds={seconds} status={pumpStatus} />}
             {(state === "endingPump" || state === "poweringOff") && <div className="transition-screen">
               <ArcProgress percent={transitionProgress} color="#EF4C4E" />
               <img className="feedback-symbol" src={state === "endingPump" ? "/assets/v5/icon/Type=stop.svg" : "/assets/v5/icon/Type=power-off.svg"} alt="" />
-              <p>{state === "endingPump" ? <>Press and hold to<br />end pumping.</> : <>Press and hold to<br />power off.</>}</p>
-              <span>{Math.max(1, Math.ceil((100 - transitionProgress) / 100 * 3))}s</span>
+              <p>{state === "endingPump" ? <>Press and hold to<br />end pumping<br />and power off.</> : <>Press and hold to<br />power off.</>}</p>
+              <span>{Math.max(1, Math.ceil((100 - transitionProgress) / 100 * 2))}s</span>
             </div>}
-            {state === "powerOnPrompt" && holdProgress > 0 && <ArcProgress percent={holdProgress} color="#F3F4FF" />}
+            {(state === "powerOnPrompt" || state === "nightLight") && holdProgress > 0 && <ArcProgress percent={holdProgress} color="#F3F4FF" />}
           </div>
 
           <div className={`device-controls${state === "leakCheck" ? ` is-leak-check solution-${solution}` : ""}`} aria-label="设备实体按键">
             {MODES.map((item) => <button key={item.id} onClick={() => showTemporary(item.id)} disabled={deviceControlsLocked} aria-label={item.label}><img className="button-art" src={`/assets/v5/device-buttons/${item.id === "stimulation" ? "Stimulate" : "Expression"}.svg`} alt={item.label} /></button>)}
             <button onClick={() => openLevel("speed")} disabled={deviceControlsLocked} aria-label="Speed"><img className="button-art" src="/assets/v5/device-buttons/Speed.svg" alt="Speed" /></button>
             <button onClick={() => openLevel("left")} disabled={deviceControlsLocked} aria-label="Left"><img className="button-art" src="/assets/v5/device-buttons/Left.svg" alt="Left" /></button>
-            <button className="pause-control-button" onClick={handlePauseControlClick}
-              onPointerDown={beginPauseButtonHold}
-              onPointerUp={() => finishPauseButtonHold(true)}
-              onPointerCancel={() => finishPauseButtonHold(false)}
-              onPointerLeave={() => finishPauseButtonHold(false)}
-              disabled={deviceControlsLocked && state !== "leakCheck"} aria-label="Start/Pause"><img className="button-art" src="/assets/v5/device-buttons/SP.svg" alt="Start/Pause" /></button>
+            <button className="night-control-button" data-asset-slot="night-light-key" onClick={toggleNight}
+              onPointerDown={beginNightHold} onPointerUp={stopNightHold} onPointerCancel={stopNightHold} onPointerLeave={stopNightHold}
+              disabled={["boot", "poweringOff", "endingPump", "theme"].includes(state)} aria-label="夜灯：短按开启，长按两秒关闭">
+              {V3_CONFIG.nightKeyAsset ? <img className="button-art" src={V3_CONFIG.nightKeyAsset} alt="夜灯" /> : <span className={`night-key-placeholder${nightOn ? " is-on" : ""}`}><span>夜灯</span><small>Light</small></span>}
+            </button>
             <button onClick={() => openLevel("right")} disabled={deviceControlsLocked} aria-label="Right"><img className="button-art" src="/assets/v5/device-buttons/Right.svg" alt="Right" /></button>
           </div>
         </div>
@@ -917,12 +1030,17 @@ export default function DeviceDemo() {
 
       <aside className="guide-panel">
         <button className="panel-toggle" onClick={() => setShowGuide(!showGuide)}>{showGuide ? "收起操作指南" : "展开操作指南"}</button>
-        {showGuide && <div className="guide-content"><h2>Demo 操作指南</h2><div className="guide-grid"><div><b>鼠标 / 触控板</b><p>点按：确认 / 开始暂停</p><p>长按 2 秒：开机</p><p>长按 3 秒：结束 / 关机</p><p>双指滚动：圆钮选择</p></div><div><b>键盘</b><p>Q / W / E：模式</p><p>A / D：左右档位</p><p>S：开始 / 暂停</p></div></div></div>}
+        {showGuide && <div className="guide-content"><h2>Demo 操作指南</h2><div className="guide-grid"><div><b>鼠标 / 触控板</b><p>点按：确认 / 开始暂停</p><p>长按 2 秒：开机</p><p>长按 2 秒：结束并关机</p><p>圆盘上滚轮：双侧吸力 / 亮度</p></div><div><b>键盘</b><p>Q / W：模式 · E：速度</p><p>A / D：左右档位</p><p>S / 圆盘点按：开始 / 暂停</p></div></div></div>}
       </aside>
 
       <aside className="debug-panel">
         <button className="debug-toggle" onClick={() => setShowDebug(!showDebug)}>{showDebug ? "收起演示状态" : "演示状态"}</button>
         {showDebug && <div className="debug-content">
+          <div className="app-simulator"><b>App 事件模拟</b><div className="simulator-row">{MENU_ITEMS.filter(item => item.mode !== "stimulation" && item.mode !== "expression").map(item => <button disabled={deviceControlsLocked} key={item.mode} onClick={() => { setBluetoothConnected(true); showTemporary(item.mode); }}>{item.label}</button>)}</div>
+            {nightOn && nightAuto && <div className="ambient-control"><label htmlFor="ambient-light">外部光线模拟 <span>{ambientLight < 34 ? "昏暗" : ambientLight < 67 ? "适中" : "明亮"}</span></label><input id="ambient-light" type="range" min="0" max="100" value={ambientLight} onChange={event => setAmbientLight(Number(event.target.value))} aria-label="外部光线亮度" /><div className="ambient-scale"><span>暗</span><span>亮</span></div></div>}
+          </div>
+          <button disabled={pumpStatus !== "idle" || deviceControlsLocked} onClick={() => setState("theme")}>皮肤选择</button>
+          <button onClick={reset}>重置演示</button>
           <button onClick={() => jumpToDemoState("sealChecking")}>启动自检</button>
           {[0, 1, 2, 3].map((step) => <button key={`leak-debug-${step}`} onClick={() => jumpToLeakStep(step)}>严重漏气{step + 1}</button>)}
           <button onClick={() => jumpToDemoState("home")}>主页</button>

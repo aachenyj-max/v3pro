@@ -30,8 +30,15 @@ button { font:inherit; }
 .solution-switch small { margin-left:5px; color:#aaa; font-size:9px; }
 .workspace { min-height:100vh; display:grid; place-items:center; padding:78px 18px 150px; }
 .device-wrap { position:relative; width:min(1220px,96vw,calc((100vh - 228px)*1.3933)); aspect-ratio:1665/1195; filter:drop-shadow(0 34px 35px #554c4522); }
-.device-image { position:absolute; inset:0; width:100%; height:100%; object-fit:contain; pointer-events:none; }
-.round-screen { position:absolute; left:20.6%; top:31.25%; width:25.65%; aspect-ratio:1; border-radius:50%; overflow:hidden; background:#050505; cursor:pointer; touch-action:none; box-shadow:inset 0 0 0 2px #ffffff1a; outline:none; font-family:"Aeonik Soft Pro","Avenir Next","V3 Geist","Segoe UI",Arial,sans-serif; }
+.night-light-halo { position:absolute; z-index:0; left:8%; right:8%; bottom:-14%; height:34%; border-radius:50%; background:radial-gradient(ellipse at 50% 8%,rgba(255,216,139,.96) 0%,rgba(255,190,94,.68) 31%,rgba(255,168,70,.3) 56%,transparent 80%); filter:blur(24px); opacity:0; transform:scale(.9,.7); transition:opacity .5s ease,transform .5s ease; pointer-events:none; }
+.night-light-halo::after { content:""; position:absolute; inset:30% 7% 0; border-radius:50%; background:radial-gradient(ellipse,rgba(255,196,97,.64),transparent 73%); filter:blur(29px); }
+.night-light-halo.is-on { opacity:var(--lamp-intensity); transform:scale(1); }
+.night-light-rim { position:absolute; z-index:0; inset:0; width:100%; height:100%; object-fit:contain; pointer-events:none; opacity:0; filter:drop-shadow(0 0 4px #ffdeab) drop-shadow(0 0 11px #ffca80); transition:opacity .5s ease; }
+.night-light-rim.is-on { opacity:calc(var(--lamp-intensity) * .48); }
+.device-image { position:absolute; z-index:1; inset:0; width:100%; height:100%; object-fit:contain; pointer-events:none; }
+.night-light-source { position:absolute; z-index:2; left:10%; width:80%; bottom:1.2%; height:6%; border-radius:50%; background:radial-gradient(ellipse at 50% 100%,rgba(255,226,164,.44),rgba(255,194,104,.16) 44%,transparent 77%); filter:blur(10px); opacity:0; transition:opacity .5s ease; pointer-events:none; }
+.night-light-source.is-on { opacity:calc(var(--lamp-intensity) * .42); }
+.round-screen { position:absolute; z-index:3; left:20.6%; top:31.25%; width:25.65%; aspect-ratio:1; border-radius:50%; overflow:hidden; background:#050505; cursor:pointer; touch-action:none; box-shadow:inset 0 0 0 2px #ffffff1a; outline:none; font-family:"Aeonik Soft Pro","Avenir Next","V3 Geist","Segoe UI",Arial,sans-serif; }
 .round-screen:focus-visible { box-shadow:0 0 0 4px #5c92ff80; }
 .round-screen > img { width:100%; height:100%; object-fit:cover; display:block; pointer-events:none; }
 .pump-screen-svg { position:absolute; inset:0; display:block; width:100%; height:100%; overflow:hidden; background:#000; }
@@ -119,6 +126,8 @@ button { font:inherit; }
 .level-time i { color:var(--mode-color); font-style:normal; font-size:.8em; }
 .mini-timer { position:absolute; z-index:5; inset:0; display:block; width:100%; height:100%; pointer-events:none; }
 .mini-timer-text { fill:#fff; font-family:"Aeonik Soft Pro","Avenir Next","V3 Geist","Segoe UI",Arial,sans-serif; font-size:23px; font-weight:650; font-variant-numeric:tabular-nums; }
+.dual-timer-content { display:flex; align-items:center; justify-content:center; gap:16px; width:100%; height:100%; color:#fff; font-family:"Aeonik Soft Pro","Avenir Next","V3 Geist","Segoe UI",Arial,sans-serif; font-size:26px; font-weight:500; line-height:1.3; font-variant-numeric:tabular-nums; white-space:nowrap; }
+.dual-timer-content img { display:block; flex:0 0 18px; width:18px; height:19px; }
 .mini-timer-cleanup { fill:#000; }
 .menu-screen-svg { position:absolute; inset:0; display:block; width:100%; height:100%; }
 .menu-dots circle { fill:#555; }
@@ -135,16 +144,13 @@ button { font:inherit; }
 .feedback-symbol { position:absolute; top:24%; left:50%; width:19.45%; aspect-ratio:1; transform:translateX(-50%); }
 .transition-screen p { position:absolute; top:50%; left:14%; right:14%; margin:0; font-size:clamp(13px,1.55vw,21px); font-weight:400; line-height:1.25; }
 .transition-screen>span { position:absolute; left:0; right:0; bottom:12%; color:#999; font-size:clamp(10px,1.35vw,18px); }
-.device-controls { position:absolute; left:53.7%; top:35.5%; width:32%; display:grid; grid-template-columns:repeat(3,1fr); gap:22px 26px; }
+.device-controls { position:absolute; z-index:3; left:53.7%; top:35.5%; width:32%; display:grid; grid-template-columns:repeat(3,1fr); gap:22px 26px; }
 .device-controls button { position:relative; display:flex; min-width:0; align-items:center; justify-content:center; padding:0; border:0; background:transparent; color:#fff; cursor:pointer; }
 .button-art { display:block; width:clamp(58px,6.2vw,88px); height:auto; pointer-events:none; filter:drop-shadow(0 1px 5px #7778); transition:transform .18s,filter .18s; }
 .device-controls button:hover .button-art { transform:scale(1.04); filter:drop-shadow(0 0 7px #fff8); }
 .device-controls button:active .button-art { transform:scale(.95); filter:drop-shadow(0 0 4px #fff5); }
 .device-controls button:disabled { opacity:.2; cursor:not-allowed; }
 .device-controls.is-leak-check button:disabled { opacity:.1; filter:saturate(0) brightness(.38); }
-.device-controls.is-leak-check .pause-control-button { opacity:1; }
-.device-controls.is-leak-check.solution-1 .pause-control-button .button-art { animation:leakPauseBreathing 2.4s cubic-bezier(.45,0,.55,1) infinite; }
-.device-controls.is-leak-check.solution-2 .pause-control-button .button-art { opacity:1; filter:brightness(1.18) drop-shadow(0 0 7px rgba(255,255,255,.62)); }
 @keyframes leakPauseBreathing { 0%,100% { opacity:.72; filter:brightness(.92) drop-shadow(0 0 3px rgba(255,255,255,.22)); } 50% { opacity:1; filter:brightness(1.12) drop-shadow(0 0 7px rgba(255,255,255,.48)); } }
 .status-toast { position:fixed; z-index:35; top:24px; left:50%; transform:translateX(-50%); display:flex; align-items:center; gap:9px; max-width:46vw; padding:10px 16px; border:1px solid #ffffff33; border-radius:999px; color:white; background:#202020e8; box-shadow:0 8px 24px #0002; font-size:12px; backdrop-filter:blur(12px); }
 .dot { width:7px; height:7px; border-radius:50%; background:#7b7b7b; }
@@ -185,3 +191,51 @@ button { font:inherit; }
   .debug-content { margin-top:6px; padding:7px; }
   .debug-content button { padding:7px 9px; font-size:11px; }
 }
+
+/* V3 Pro dial settings and replaceable night-light key. */
+.dial-settings-svg,.dial-hint,.night-screen,.theme-picker { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; }
+.night-screen { transition:opacity .3s; }
+.night-hold-screen { position:absolute; inset:0; z-index:10; width:100%; height:100%; pointer-events:none; }
+.dial-hint { z-index:4; }
+.night-key-placeholder { display:flex; width:clamp(58px,6.2vw,88px); aspect-ratio:74/90; flex-direction:column; align-items:center; justify-content:center; gap:12%; color:#fff; border:1.5px dashed #ffffffb0; border-radius:24%; font-size:clamp(13px,1.3vw,19px); }
+.night-key-placeholder small { font-size:clamp(8px,.75vw,11px); }
+.night-key-placeholder.is-on { color:#fff0cc; border-color:#fff0cc; filter:drop-shadow(0 0 9px #ffd580); }
+.round-screen.leak-circle-control { animation:circleControlBreathing 2.4s ease-in-out infinite; }
+@keyframes circleControlBreathing { 50% { box-shadow:0 0 0 3px #ffffff80,0 0 24px #fff5; } }
+.level-limit { position:absolute; top:56%; left:15%; width:70%; text-align:center; font-style:normal; color:var(--mode-color); font-size:clamp(9px,1vw,15px); background:#000; }
+.light-feedback { position:absolute; inset:0; z-index:8; border-radius:50%; background:#000c; pointer-events:none; }
+.light-feedback svg { display:block; width:100%; height:100%; }
+.light-feedback text { fill:#fff; font-family:"Aeonik Soft Pro","Avenir Next","V3 Geist","Segoe UI",Arial,sans-serif; font-size:26px; font-weight:600; }
+.theme-picker { padding:22% 12% 10%; color:#fff; text-align:center; }
+.theme-picker h2 { margin:0; font-size:clamp(15px,1.6vw,24px); font-weight:500; }
+.theme-picker p { margin:4% 0 7%; color:#999; font-size:clamp(9px,1vw,14px); }
+.theme-options { display:flex; gap:10%; justify-content:center; }
+.theme-options>div { width:44%; }
+.theme-preview { position:relative; aspect-ratio:1; border:2px solid #292929; border-radius:50%; overflow:hidden; }
+.theme-preview svg { width:100%; height:100%; }
+.theme-options .selected .theme-preview { border-color:#e2637e; }
+.theme-options span { display:block; margin-top:7%; font-size:clamp(10px,1.1vw,16px); }
+.theme-options .selected span { color:#e2637e; }
+.debug-content { flex-wrap:wrap; width:min(540px,calc(100vw - 40px)); max-height:35vh; overflow:auto; }
+.app-simulator { width:100%; text-align:left; border-bottom:1px solid #ddd; padding-bottom:8px; }
+.app-simulator b { display:block; padding:2px 3px 8px; color:#666; font-size:12px; }
+.ambient-control { padding:7px 3px 2px; color:#6b6257; font-size:11px; }
+.ambient-control label { display:flex; justify-content:space-between; gap:12px; font-weight:600; }
+.ambient-control label span { color:#aa7733; }
+.ambient-control input { display:block; width:100%; margin:8px 0 0; accent-color:#dcaa5f; cursor:pointer; }
+.ambient-scale { display:flex; justify-content:space-between; color:#9b948b; font-size:10px; }
+.simulator-row { display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin:4px 0; font-size:12px; color:#555; }
+.debug-content button:disabled { opacity:.35; cursor:not-allowed; }
+.debug-content button[aria-pressed="true"] { border-color:#e2637e; color:#b33856; background:#ffedf2; }
+@media(max-width:760px) { .night-key-placeholder { width:clamp(42px,11vw,62px); } .debug-content { max-height:28vh; } }
+.round-screen { container-type:inline-size; }
+.theme-picker { padding:0; }
+.theme-picker h2 { position:absolute; top:24%; left:0; width:100%; font-size:6cqw; }
+.theme-picker p { position:absolute; top:33%; left:8%; width:84%; margin:0; font-size:4.4cqw; white-space:nowrap; }
+.theme-options { position:absolute; top:41.5%; left:19.5%; width:61%; gap:7%; }
+.theme-options>div { width:46.5%; }
+.theme-options span { font-size:4.4cqw; white-space:nowrap; }
+.light-feedback.light-off { background:transparent; }
+.light-feedback.light-off text { font-size:26px; font-weight:500; }
+.pump-screen-svg-light-off .pump-svg-title { font-weight:500; }
+.pump-screen-svg-light-off .pump-svg-time { font-weight:600; }

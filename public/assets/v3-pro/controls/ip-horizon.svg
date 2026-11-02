@@ -1,0 +1,26 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="1098" height="1098" viewBox="0 0 1098 1098" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Ellipse 3" filter="url(#filter0_iif_0_96)">
+<circle cx="549" cy="549" r="541" fill="#2A000A"/>
+</g>
+<defs>
+<filter id="filter0_iif_0_96" x="0" y="0" width="1098" height="1102" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+<feFlood flood-opacity="0" result="BackgroundImageFix"/>
+<feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/>
+<feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+<feMorphology radius="40" operator="erode" in="SourceAlpha" result="effect1_innerShadow_0_96"/>
+<feOffset dy="12"/>
+<feGaussianBlur stdDeviation="20"/>
+<feComposite in2="hardAlpha" operator="arithmetic" k2="-1" k3="1"/>
+<feColorMatrix type="matrix" values="0 0 0 0 0.45098 0 0 0 0 0.101961 0 0 0 0 0.154314 0 0 0 1 0"/>
+<feBlend mode="normal" in2="shape" result="effect1_innerShadow_0_96"/>
+<feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+<feMorphology radius="12" operator="erode" in="SourceAlpha" result="effect2_innerShadow_0_96"/>
+<feOffset/>
+<feGaussianBlur stdDeviation="16"/>
+<feComposite in2="hardAlpha" operator="arithmetic" k2="-1" k3="1"/>
+<feColorMatrix type="matrix" values="0 0 0 0 1 0 0 0 0 0.468074 0 0 0 0 0.601055 0 0 0 1 0"/>
+<feBlend mode="normal" in2="effect1_innerShadow_0_96" result="effect2_innerShadow_0_96"/>
+<feGaussianBlur stdDeviation="4" result="effect3_foregroundBlur_0_96"/>
+</filter>
+</defs>
+</svg>

@@ -764,11 +764,10 @@ export default function DeviceDemo() {
 
   const startPowerOn = useCallback(() => {
     if (state !== "off" && state !== "powerOnPrompt" && !(state === "nightLight" && nightReturn.current === "off")) return;
-    nightFirstOn.current = true;
-    setNightOn(false);
+    if (!nightOn) nightFirstOn.current = true;
     setState("boot"); setToast("设备启动中…");
     setTimeout(() => { setState(themeChosen.current ? "home" : "theme"); setToast(themeChosen.current ? "Stimulation 默认主页" : "滚轮选择皮肤，点按圆盘确认"); }, V3_CONFIG.bootDurationMs);
-  }, [state]);
+  }, [nightOn, state]);
 
   const handleWheel = useCallback((event: React.WheelEvent) => {
     event.preventDefault();

@@ -154,7 +154,7 @@ button { font:inherit; }
 .device-controls button:active .button-art { transform:scale(.95); filter:drop-shadow(0 0 4px #fff5); }
 .device-controls button:disabled { opacity:.2; cursor:not-allowed; }
 .device-controls.is-unpowered button:not(.night-control-button) { opacity:0; }
-.device-controls.is-theme button:disabled { opacity:1; }
+.device-controls.is-controls-lit button:disabled { opacity:1; }
 .device-controls.is-leak-check button:disabled { opacity:.1; filter:saturate(0) brightness(.38); }
 @keyframes leakPauseBreathing { 0%,100% { opacity:.72; filter:brightness(.92) drop-shadow(0 0 3px rgba(255,255,255,.22)); } 50% { opacity:1; filter:brightness(1.12) drop-shadow(0 0 7px rgba(255,255,255,.48)); } }
 .status-toast { position:fixed; z-index:35; top:24px; left:50%; transform:translateX(-50%); display:flex; align-items:center; gap:9px; max-width:46vw; padding:10px 16px; border:1px solid #ffffff33; border-radius:999px; color:white; background:#202020e8; box-shadow:0 8px 24px #0002; font-size:12px; backdrop-filter:blur(12px); }

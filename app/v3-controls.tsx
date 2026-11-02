@@ -65,15 +65,27 @@ export function DualLevelScreen({ left, right, color, limited }: { left: number;
   </svg>;
 }
 
-export function NightLightScreen({ on, auto, level, dimmed, color }: { on: boolean; auto: boolean; level: number; dimmed: boolean; color: string }) {
+export function NightLightScreen({ auto, level, dimmed, color }: { auto: boolean; level: number; dimmed: boolean; color: string }) {
   return <div className="night-screen" style={{ opacity: dimmed ? .5 : 1, "--night-color": color } as CSSProperties}>
-    <svg className="dial-settings-svg" viewBox="0 0 432 432" role="img" aria-label={`Night Light ${on ? auto ? "Auto" : level : "Off"}`}>
-      {on ? ["M61 150 A170 170 0 0 1 135 65", "M158 53 A170 170 0 0 1 274 53", "M297 65 A170 170 0 0 1 371 150"].map((d,i) => <path key={d} d={d} fill="none" stroke={i === (auto ? 0 : level - 1) ? color : "#252525"} strokeWidth="11" strokeLinecap="round" />) : <image href="/assets/v3-pro/controls/night-off-progress.svg" x="40" y="40" width="352" height="352" />}
-      <text x="216" y="221" textAnchor="middle" fontSize="56" fontWeight="600" fill="white">{on ? auto ? "Auto" : level : "Off"}</text>
-      <text x="216" y="284" textAnchor="middle" fontSize="26" fill={on ? "#999" : "#7A7A80"}>Brightness</text>
+    <svg className="dial-settings-svg" viewBox="0 0 432 432" role="img" aria-label={`Night Light ${auto ? "Auto" : level}`}>
+      {["M61 150 A170 170 0 0 1 135 65", "M158 53 A170 170 0 0 1 274 53", "M297 65 A170 170 0 0 1 371 150"].map((d,i) => <path key={d} d={d} fill="none" stroke={i === (auto ? 0 : level - 1) ? color : "#252525"} strokeWidth="11" strokeLinecap="round" />)}
+      <text x="216" y="221" textAnchor="middle" fontSize="56" fontWeight="600" fill="white">{auto ? "Auto" : level}</text>
+      <text x="216" y="284" textAnchor="middle" fontSize="26" fill="#999">Brightness</text>
     </svg>
-    {on && <NightLightHintArtwork />}
+    <NightLightHintArtwork />
   </div>;
+}
+
+export function NightLightOffScreen({ remaining }: { remaining: number }) {
+  const base = "/assets/v3-pro/controls/";
+  return <svg className="night-hold-screen" viewBox="0 0 432 432" role="img" aria-label="Light off，夜灯已关闭">
+    <circle cx="216" cy="216" r="216" fill="#000" />
+    <image href={`${base}night-off-feedback-ring.svg`} x="40" y="40" width="352" height="352" />
+    <image href={`${base}night-off-feedback-badge.svg`} x="188" y="120" width="56" height="56" />
+    <image href={`${base}night-off-feedback-icon.svg`} x="196" y="129" width="40" height="40" />
+    <text x="216" y="258" textAnchor="middle" fill="#fff" fontSize="26" fontWeight="500">Light off</text>
+    <text x="216" y="390" textAnchor="middle" fill="#999" fontSize="19" fontWeight="500">{remaining} s</text>
+  </svg>;
 }
 
 export function NightLightHoldScreen({ progress }: { progress: number }) {

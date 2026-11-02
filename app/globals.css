@@ -203,6 +203,7 @@ button { font:inherit; }
 .night-key-placeholder { display:flex; width:clamp(58px,6.2vw,88px); aspect-ratio:74/90; flex-direction:column; align-items:center; justify-content:center; gap:12%; color:#fff; border:1.5px dashed #ffffffb0; border-radius:24%; font-size:clamp(13px,1.3vw,19px); }
 .night-key-placeholder small { font-size:clamp(8px,.75vw,11px); }
 .night-key-placeholder.is-on { color:#fff0cc; border-color:#fff0cc; filter:drop-shadow(0 0 9px #ffd580); }
+.device-controls button.night-control-button.is-unpowered { opacity:.2; }
 .round-screen.leak-circle-control { animation:circleControlBreathing 2.4s ease-in-out infinite; }
 @keyframes circleControlBreathing { 50% { box-shadow:0 0 0 3px #ffffff80,0 0 24px #fff5; } }
 .level-limit { position:absolute; top:55.61%; left:17.6%; width:64.8%; text-align:center; font-style:normal; font-size:5.09cqw; line-height:1.3; font-weight:500; letter-spacing:0; color:var(--mode-color); }

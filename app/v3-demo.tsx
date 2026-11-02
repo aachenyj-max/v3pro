@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { DialHint, DualLevelScreen, NightLightScreen, NightLightHoldScreen, IpArtwork } from "./v3-controls";
+import { ConfirmHintArtwork, DialHint, DualLevelScreen, NightLightScreen, NightLightHoldScreen, IpArtwork } from "./v3-controls";
 import { MENU_ITEMS, MODE_COLORS, MODES, PumpMode, ScreenState, V3_CONFIG } from "./v3-config";
 
 const fixedImages: Partial<Record<ScreenState, string>> = {
@@ -212,12 +212,6 @@ function MenuScreen({ index, showHint }: { index: number; showHint: boolean }) {
   return <svg className="menu-screen-svg" viewBox="0 0 432 432" role="img" aria-label={item.label}>
     <defs>
       <clipPath id="menu-icon-clip"><rect x="120" y="105" width="192" height="124" /></clipPath>
-      <path id="menu-hint-path" d="M98.62 333.38 A166 166 0 0 0 333.38 333.38" />
-      <linearGradient id="menu-hint-shine-gradient" x1="-5%" y1="0" x2="45%" y2="0">
-        <stop stopColor="white" stopOpacity="0" /><stop offset=".25" stopColor="white" stopOpacity=".18" /><stop offset=".5" stopColor="white" stopOpacity=".58" /><stop offset=".75" stopColor="white" stopOpacity=".18" /><stop offset="1" stopColor="white" stopOpacity="0" />
-        <animate attributeName="x1" values="-5%;110%;110%;-5%;-5%" keyTimes="0;.68;.76;.84;1" dur="3.6s" repeatCount="indefinite" />
-        <animate attributeName="x2" values="45%;160%;160%;45%;45%" keyTimes="0;.68;.76;.84;1" dur="3.6s" repeatCount="indefinite" />
-      </linearGradient>
     </defs>
     <rect width="432" height="432" fill="#000" />
     <g clipPath="url(#menu-icon-clip)" transform="translate(216 167) scale(1.2) translate(-216 -167)">
@@ -228,10 +222,7 @@ function MenuScreen({ index, showHint }: { index: number; showHint: boolean }) {
     </g>
     <text className="menu-screen-title" x="216" y="264" textAnchor="middle">{item.label}</text>
     {item.estimate && <text className="menu-screen-estimate" x="216" y="300" textAnchor="middle">{item.estimate}</text>}
-    {showHint && <>
-      <text className="menu-screen-hint"><textPath href="#menu-hint-path" startOffset="50%" textAnchor="middle">Press the knob to confirm</textPath></text>
-      <text className="menu-hint-shine-text" fill="url(#menu-hint-shine-gradient)"><textPath href="#menu-hint-path" startOffset="50%" textAnchor="middle">Press the knob to confirm</textPath></text>
-    </>}
+    {showHint && <ConfirmHintArtwork />}
   </svg>;
 }
 
@@ -365,8 +356,8 @@ function ArcProgress({ percent, color }: { percent: number; color: string }) {
   return <svg className="arc-progress-svg" viewBox="0 0 432 432" aria-hidden="true">
     <g transform="translate(40 40)">
       <path d={arcPath} fill="none" stroke="#252525" strokeWidth="11" strokeLinecap="round" />
-      <path d={arcPath} fill="none" stroke={color} strokeWidth="11" strokeLinecap="round" pathLength="100"
-        strokeDasharray={`${safePercent} ${100 - safePercent}`} transform="translate(352 0) scale(-1 1)" />
+      {safePercent > 0 && <path d={arcPath} fill="none" stroke={color} strokeWidth="11" strokeLinecap="round" pathLength="100"
+        strokeDasharray={`${safePercent} ${100 - safePercent}`} strokeDashoffset={safePercent - 100} />}
     </g>
   </svg>;
 }
@@ -473,6 +464,7 @@ export default function DeviceDemo() {
   const [nightHoldProgress, setNightHoldProgress] = useState(0);
   const [nightDimmed, setNightDimmed] = useState(false);
   const [levelLimit, setLevelLimit] = useState(false);
+  const [levelLimitPreview, setLevelLimitPreview] = useState<{ left: number; right: number } | null>(null);
   const levelEntry = useRef({ left: leftLevel, right: rightLevel });
   const nightReturn = useRef<ScreenState>("off");
   const nightTimer = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -621,6 +613,7 @@ export default function DeviceDemo() {
     }
     levelEntry.current = { left: leftLevel, right: rightLevel };
     setLevelLimit(false);
+    setLevelLimitPreview(null);
     setActiveControl(side); setState("level");
     setToast(side === "speed" ? "韵律速度调节" : `${side === "left" ? "左侧" : "右侧"}档位调节`);
   }, [activeControl, leftLevel, rightLevel, isPowered, pumpStatus, state, wake]);
@@ -628,6 +621,8 @@ export default function DeviceDemo() {
   const confirmLevel = useCallback((automatic = false) => {
     if (levelConfirmTimer.current) clearTimeout(levelConfirmTimer.current);
     levelConfirmTimer.current = null;
+    setLevelLimit(false);
+    setLevelLimitPreview(null);
     setState(levelReturnState.current);
     const label = activeControl === "left" ? "左侧档位" : activeControl === "right" ? "右侧档位" : "韵律速度";
     setToast(`${state === "bothLevel" ? "双侧档位" : label}已${automatic ? "自动" : ""}确认`);
@@ -646,6 +641,12 @@ export default function DeviceDemo() {
   useEffect(() => () => {
     if (levelConfirmTimer.current) clearTimeout(levelConfirmTimer.current);
   }, []);
+  useEffect(() => {
+    if (!levelLimit) return;
+    const rollbackTimer = setTimeout(() => setLevelLimitPreview(null), 1000);
+    const hideTimer = setTimeout(() => setLevelLimit(false), 2000);
+    return () => { clearTimeout(rollbackTimer); clearTimeout(hideTimer); };
+  }, [levelLimit]);
   useEffect(() => {
     if (state !== "level" && state !== "bothLevel" && levelConfirmTimer.current) {
       clearTimeout(levelConfirmTimer.current);
@@ -769,23 +770,31 @@ export default function DeviceDemo() {
     if (state === "paused" || state === "home" || state === "pumping") {
       levelEntry.current = { left: leftLevel, right: rightLevel };
       levelReturnState.current = state;
-      setLevelLimit(false); setState("bothLevel");
+      setLevelLimit(false); setLevelLimitPreview(null); setState("bothLevel");
       setToast("双侧吸力：滚轮向下增加、向上减少；点按圆盘确认");
       return;
     }
     if (state === "level" || state === "bothLevel") {
+      if (levelLimit) return;
       const limit = (value: number, initial: number) => Math.min(V3_CONFIG.maxLevel, initial + 3, Math.max(V3_CONFIG.minLevel, value + direction));
       const left = limit(leftLevel, levelEntry.current.left);
       const right = limit(rightLevel, levelEntry.current.right);
       const hit = direction > 0 && ((state === "bothLevel" || activeControl === "left") && leftLevel >= levelEntry.current.left + 3 || (state === "bothLevel" || activeControl === "right") && rightLevel >= levelEntry.current.right + 3);
-      setLevelLimit(hit);
+      if (hit) {
+        setLevelLimitPreview({
+          left: state === "bothLevel" || activeControl === "left" ? Math.min(V3_CONFIG.maxLevel, leftLevel + 1) : leftLevel,
+          right: state === "bothLevel" || activeControl === "right" ? Math.min(V3_CONFIG.maxLevel, rightLevel + 1) : rightLevel,
+        });
+        setLevelLimit(true);
+        return;
+      }
       if (state === "bothLevel" || activeControl === "left") setLeftLevel(left);
       if (state === "bothLevel" || activeControl === "right") setRightLevel(right);
       if (state === "level" && activeControl === "speed") setSpeedLevel(value => Math.min(V3_CONFIG.maxSpeed, Math.max(1, value + direction)));
       if (levelConfirmTimer.current) clearTimeout(levelConfirmTimer.current);
       levelConfirmTimer.current = setTimeout(() => confirmLevel(true), 5000);
     }
-  }, [activeControl, confirmLevel, leftLevel, rightLevel, nightAuto, nightLevel, nightOn, state, wake]);
+  }, [activeControl, confirmLevel, leftLevel, levelLimit, rightLevel, nightAuto, nightLevel, nightOn, state, wake]);
 
   const handleScreenClick = useCallback(() => {
     if (clickLock.current) return;
@@ -915,7 +924,8 @@ export default function DeviceDemo() {
     return fixedImages[state];
   }, [menuIndex, mode, state]);
 
-  const currentLevel = activeControl === "left" ? leftLevel : activeControl === "right" ? rightLevel : speedLevel;
+  const currentLevel = activeControl === "left" ? levelLimitPreview?.left ?? leftLevel : activeControl === "right" ? levelLimitPreview?.right ?? rightLevel : speedLevel;
+  const showingNightPowerOnHold = state === "nightLight" && nightReturn.current === "off" && holdProgress > 0;
 
   const reset = () => {
     if (levelConfirmTimer.current) clearTimeout(levelConfirmTimer.current);
@@ -924,7 +934,7 @@ export default function DeviceDemo() {
     modeSwitchTimer.current = null;
     stopHold(); clearTransition(); setState("off"); setMode(V3_CONFIG.defaultMode); setLeftLevel(V3_CONFIG.defaultLevel);
     setRightLevel(V3_CONFIG.defaultLevel); setSpeedLevel(V3_CONFIG.defaultSpeed); setSeconds(0); setPumpStatus("idle"); setMenuIndex(0); setToast("长按圆屏 2 秒开机");
-    setLeakStep(0); setBluetoothConnected(false); setNightOn(false); setLightFeedback(null); setLevelLimit(false); stopNightHold();
+    setLeakStep(0); setBluetoothConnected(false); setNightOn(false); setLightFeedback(null); setLevelLimit(false); setLevelLimitPreview(null); stopNightHold();
   };
 
   const jumpToDemoState = (target: "home" | "pumping" | "paused" | "sealChecking" | "leakCheck" | "standby" | "off") => {
@@ -960,6 +970,7 @@ export default function DeviceDemo() {
             onPointerUp={stopHold} onPointerCancel={stopHold} onPointerLeave={stopHold} onContextMenu={(e) => e.preventDefault()}
             role="button" tabIndex={0} onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleScreenClick(); } }} aria-label="圆盘：点按开始暂停或确认，长按两秒关机，滚轮调节">
             {screenImage && <img src={screenImage} alt="" draggable={false} />}
+            {showingNightPowerOnHold && <img src={fixedImages.powerOnPrompt} alt="" draggable={false} />}
             {state === "standby" && <StandbyScreen />}
             {state === "menu" && <MenuScreen index={menuIndex} showHint={pumpStatus === "idle"} />}
             {state === "modeSuccess" && <SuccessTimerArea seconds={seconds} status={pumpStatus} />}
@@ -974,10 +985,10 @@ export default function DeviceDemo() {
               </div>)}</div><DialHint text="Press to confirm" shine />
             </div>}
             {state === "bothLevel" && <>
-              <DualLevelScreen left={leftLevel} right={rightLevel} color={modeColor} limited={levelLimit} />
+              <DualLevelScreen left={levelLimitPreview?.left ?? leftLevel} right={levelLimitPreview?.right ?? rightLevel} color={modeColor} limited={levelLimit} />
               {pumpStatus === "idle" ? <DialHint shine /> : <MiniTimer seconds={seconds} status={pumpStatus} dual />}
             </>}
-            {state === "nightLight" && <NightLightScreen on={nightOn} auto={nightAuto} level={nightLevel} dimmed={nightDimmed} color={modeColor} />}
+            {state === "nightLight" && !showingNightPowerOnHold && <NightLightScreen on={nightOn} auto={nightAuto} level={nightLevel} dimmed={nightDimmed} color={modeColor} />}
             {lightFeedback && (state === "pumping" || state === "paused") && <div className={`light-feedback light-${lightFeedback}`} role="status"><svg viewBox="0 0 432 432" aria-label={`Light ${lightFeedback}`}>
               {lightFeedback === "off" ? <>
                 <image href="/assets/v3-pro/figma-light-off/dim-pumping-screen.svg" x="40" y="40" width="352" height="352" />
@@ -992,8 +1003,8 @@ export default function DeviceDemo() {
                 : <ArcProgress percent={currentLevel / V3_CONFIG.maxLevel * 100} color={modeColor} />}
               <strong>{currentLevel}</strong>
               {levelLimit && <em className="level-limit">For safety,<br />Up to 3 levels at a time.</em>}
-              <span>{activeControl === "left" ? "Left Level" : activeControl === "right" ? "Right Level" : "Speed"}</span>
-              {pumpStatus === "idle" ? <DialHint shine /> : <MiniTimer seconds={seconds} status={pumpStatus} />}
+              {!levelLimit && <span>{activeControl === "left" ? "Left Level" : activeControl === "right" ? "Right Level" : "Speed"}</span>}
+              {pumpStatus === "idle" ? <DialHint shine fontSize={19} fontWeight={500} /> : <MiniTimer seconds={seconds} status={pumpStatus} />}
             </div>}
             {state === "menu" && pumpStatus !== "idle" && <MiniTimer seconds={seconds} status={pumpStatus} />}
             {(state === "endingPump" || state === "poweringOff") && <div className="transition-screen">
@@ -1022,7 +1033,7 @@ export default function DeviceDemo() {
 
       <aside className="guide-panel">
         <button className="panel-toggle" onClick={() => setShowGuide(!showGuide)}>{showGuide ? "收起操作指南" : "展开操作指南"}</button>
-        {showGuide && <div className="guide-content"><h2>Demo 操作指南</h2><div className="guide-grid"><div><b>鼠标 / 触控板</b><p>点按：确认 / 开始暂停</p><p>长按 2 秒：开机</p><p>长按 2 秒：结束并关机</p><p>圆盘上滚轮：双侧吸力 / 亮度</p></div><div><b>键盘</b><p>Q / W：模式 · E：速度</p><p>A / D：左右档位</p><p>S / 圆盘点按：开始 / 暂停</p></div></div></div>}
+        {showGuide && <div className="guide-content"><h2>Demo 操作指南</h2><div className="guide-grid"><div><b>鼠标 / 触控板</b><p>点按：确认 / 开始暂停</p><p>长按 2 秒：开机</p><p>长按 2 秒：结束并关机</p><p>圆盘上滚轮：双侧吸力 / 亮度</p></div></div></div>}
       </aside>
 
       <aside className="debug-panel">

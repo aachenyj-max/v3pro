@@ -1,12 +1,42 @@
 import { useId, type CSSProperties } from "react";
 
-export function DialHint({ text = "Press the knob to confirm", shine = false }: { text?: string; shine?: boolean }) {
+function CutoutHintArtwork({ asset, x, y, width, height, shine }: { asset: string; x: number; y: number; width: number; height: number; shine: boolean }) {
   const id = useId();
+  return <g aria-hidden="true">
+    <image href={asset} x={x} y={y} width={width} height={height} />
+    {shine && <>
+      <defs>
+        <mask id={`${id}-mask`} maskUnits="userSpaceOnUse" x={x} y={y} width={width} height={height}><image href={asset} x={x} y={y} width={width} height={height} /></mask>
+        <linearGradient id={`${id}-shine`} gradientUnits="userSpaceOnUse" x1={x - 51} y1="0" x2={x + 19} y2="0">
+          <stop stopColor="#fff" stopOpacity="0" /><stop offset=".5" stopColor="#fff" stopOpacity=".78" /><stop offset="1" stopColor="#fff" stopOpacity="0" />
+          <animateTransform attributeName="gradientTransform" type="translate" values={`0 0;${width + 70} 0;${width + 70} 0`} keyTimes="0;.75;1" dur="3.6s" repeatCount="indefinite" />
+        </linearGradient>
+      </defs>
+      <rect x={x} y={y} width={width} height={height} fill={`url(#${id}-shine)`} mask={`url(#${id}-mask)`} />
+    </>}
+  </g>;
+}
+
+export function ConfirmHintArtwork({ shine = true }: { shine?: boolean }) {
+  // Figma's 350px Hint instance sits inside the 432px dial with a 40px rim.
+  return <CutoutHintArtwork asset="/assets/v3-pro/hints/press-knob-confirm.svg" x={106} y={330} width={220} height={63} shine={shine} />;
+}
+
+function NightLightHintArtwork() {
+  // Exact 182×40 vector cutout exported from the night-light Hint instance.
+  return <svg className="dial-hint" viewBox="0 0 432 432" aria-hidden="true">
+    <CutoutHintArtwork asset="/assets/v3-pro/hints/hold-light-turn-off.svg" x={125} y={349} width={182} height={40} shine />
+  </svg>;
+}
+
+export function DialHint({ text = "Press the knob to confirm", shine = false, fontSize = 17, fontWeight = 400 }: { text?: string; shine?: boolean; fontSize?: number; fontWeight?: number }) {
+  const id = useId();
+  if (text === "Press the knob to confirm") return <svg className="dial-hint" viewBox="0 0 432 432" aria-hidden="true"><ConfirmHintArtwork shine={shine} /></svg>;
   const pathId = `${id}-path`;
   const shineId = `${id}-shine`;
   return <svg className="dial-hint" viewBox="0 0 432 432" aria-hidden="true">
     <defs>
-      <path id={pathId} d="M76 322 Q216 492 356 322" />
+      <path id={pathId} d="M106 322 Q216 420 326 322" />
       {shine && <linearGradient id={shineId} gradientUnits="userSpaceOnUse" x1="-150" y1="0" x2="0" y2="0">
         <stop stopColor="#fff" stopOpacity="0" />
         <stop offset=".3" stopColor="#fff" stopOpacity=".12" />
@@ -16,8 +46,8 @@ export function DialHint({ text = "Press the knob to confirm", shine = false }: 
         <animateTransform attributeName="gradientTransform" type="translate" values="0 0;650 0;650 0" keyTimes="0;.8;1" dur="3.6s" repeatCount="indefinite" />
       </linearGradient>}
     </defs>
-    <text fill="#999" fontSize="17" textAnchor="middle"><textPath href={`#${pathId}`} startOffset="50%">{text}</textPath></text>
-    {shine && <text className="dial-hint-shine" fill={`url(#${shineId})`} fontSize="17" textAnchor="middle"><textPath href={`#${pathId}`} startOffset="50%">{text}</textPath></text>}
+    <text fill="#999" fontSize={fontSize} fontWeight={fontWeight} textAnchor="middle"><textPath href={`#${pathId}`} startOffset="50%">{text}</textPath></text>
+    {shine && <text className="dial-hint-shine" fill={`url(#${shineId})`} fontSize={fontSize} fontWeight={fontWeight} textAnchor="middle"><textPath href={`#${pathId}`} startOffset="50%">{text}</textPath></text>}
   </svg>;
 }
 
@@ -39,7 +69,7 @@ export function NightLightScreen({ on, auto, level, dimmed, color }: { on: boole
       <text x="216" y="221" textAnchor="middle" fontSize="56" fontWeight="600" fill="white">{on ? auto ? "Auto" : level : "Off"}</text>
       <text x="216" y="284" textAnchor="middle" fontSize="26" fill={on ? "#999" : "#7A7A80"}>Brightness</text>
     </svg>
-    {on && <DialHint text="Press & hold to turn off the light" shine />}
+    {on && <NightLightHintArtwork />}
   </div>;
 }
 

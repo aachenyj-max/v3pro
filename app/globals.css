@@ -120,7 +120,7 @@ button { font:inherit; }
 .dynamic-level { position:absolute; inset:0; color:#fff; background:#000; }
 .speed-progress-svg,.arc-progress-svg { position:absolute; inset:0; display:block; width:100%; height:100%; pointer-events:none; }
 .level-arc { --level-progress:0deg; position:absolute; inset:9.5%; border-radius:50%; transform:rotate(220deg); background:conic-gradient(var(--mode-color) var(--level-progress),#292929 0 280deg,transparent 280deg); mask:radial-gradient(circle,transparent 72%,#000 73% 77%,transparent 78%); }
-.dynamic-level strong { position:absolute; top:43.2%; left:0; right:0; transform:translateY(-50%); text-align:center; font-size:clamp(34px,4vw,56px); line-height:.88; font-weight:400; }
+.dynamic-level strong { position:absolute; top:36.86%; left:0; right:0; text-align:center; font-size:15.97cqw; line-height:1; font-weight:600; letter-spacing:0; }
 .dynamic-level>span { position:absolute; top:55.8%; left:0; right:0; color:#999; text-align:center; font-size:clamp(10px,1.4vw,19px); line-height:1; font-weight:400; }
 .level-time { position:absolute; left:27%; right:27%; bottom:10.2%; display:flex; align-items:center; justify-content:center; gap:8%; padding:4.2% 4%; border-radius:999px; background:#272727; font-size:clamp(10px,1.55vw,21px); font-weight:700; font-variant-numeric:tabular-nums; }
 .level-time i { color:var(--mode-color); font-style:normal; font-size:.8em; }
@@ -159,7 +159,7 @@ button { font:inherit; }
 .panel-toggle,.debug-toggle { border:1px solid #ddd; border-radius:12px; padding:11px 15px; background:#ffffffdc; color:#555; box-shadow:0 6px 20px #0000000d; cursor:pointer; backdrop-filter:blur(12px); }
 .guide-content { width:340px; margin-top:8px; padding:16px 18px; border:1px solid #deddd9; border-radius:18px; background:#ffffffec; box-shadow:0 16px 45px #00000012; backdrop-filter:blur(18px); }
 .guide-content h2 { margin:0 0 12px; font-size:14px; }
-.guide-grid { display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+.guide-grid { display:grid; grid-template-columns:1fr; gap:18px; }
 .guide-grid b { color:#777; font-size:11px; }
 .guide-grid p { margin:6px 0 0; font-size:11px; line-height:1.45; }
 .debug-panel { position:fixed; z-index:32; right:clamp(10px,1.5vw,24px); bottom:clamp(10px,1.4vh,22px); width:min-content; max-width:calc(100vw - 20px); text-align:right; }
@@ -202,7 +202,7 @@ button { font:inherit; }
 .night-key-placeholder.is-on { color:#fff0cc; border-color:#fff0cc; filter:drop-shadow(0 0 9px #ffd580); }
 .round-screen.leak-circle-control { animation:circleControlBreathing 2.4s ease-in-out infinite; }
 @keyframes circleControlBreathing { 50% { box-shadow:0 0 0 3px #ffffff80,0 0 24px #fff5; } }
-.level-limit { position:absolute; top:56%; left:15%; width:70%; text-align:center; font-style:normal; color:var(--mode-color); font-size:clamp(9px,1vw,15px); background:#000; }
+.level-limit { position:absolute; top:55.61%; left:17.6%; width:64.8%; text-align:center; font-style:normal; font-size:5.09cqw; line-height:1.3; font-weight:500; letter-spacing:0; color:var(--mode-color); }
 .light-feedback { position:absolute; inset:0; z-index:8; border-radius:50%; background:#000c; pointer-events:none; }
 .light-feedback svg { display:block; width:100%; height:100%; }
 .light-feedback text { fill:#fff; font-family:"Aeonik Soft Pro","Avenir Next","V3 Geist","Segoe UI",Arial,sans-serif; font-size:26px; font-weight:600; }

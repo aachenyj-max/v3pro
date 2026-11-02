@@ -32,6 +32,9 @@ function NightLightHintArtwork() {
 export function DialHint({ text = "Press the knob to confirm", shine = false, fontSize = 17, fontWeight = 400 }: { text?: string; shine?: boolean; fontSize?: number; fontWeight?: number }) {
   const id = useId();
   if (text === "Press the knob to confirm") return <svg className="dial-hint" viewBox="0 0 432 432" aria-hidden="true"><ConfirmHintArtwork shine={shine} /></svg>;
+  if (text === "Press to confirm") return <svg className="dial-hint" viewBox="0 0 432 432" aria-hidden="true">
+    <CutoutHintArtwork asset="/assets/v3-pro/hints/press-to-confirm.svg" x={145} y={359} width={140} height={28} shine={shine} />
+  </svg>;
   const pathId = `${id}-path`;
   const shineId = `${id}-shine`;
   return <svg className="dial-hint" viewBox="0 0 432 432" aria-hidden="true">
@@ -97,7 +100,7 @@ export function IpArtwork() {
   const base = "/assets/v3-pro/controls/";
   return <g className="ip-artwork" transform="translate(40 40)">
     <image href={`${base}ip-back.svg`} x="0" y="0" width="352" height="352" transform="translate(0 352) scale(1 -1)" />
-    <image href={`${base}ip-body.png`} x="49" y="91" width="226.234" height="222.619" transform="rotate(-23.71 162 202)" />
+    <image href={`${base}ip-body.png`} x="67.5" y="80.09" width="226.234" height="222.619" transform="rotate(-23.71 180.6 191.4)" />
     <image href={`${base}ip-horizon.svg`} x="-365" y="219" width="1082" height="1082" transform="rotate(180 176 760)" />
     <image href={`${base}ip-hand-left.png`} x="88" y="192" width="67.878" height="49.551" transform="rotate(-10.68 122 217)" />
     <image href={`${base}ip-hand-right.png`} x="196" y="189" width="59.732" height="60.411" transform="rotate(-62.38 226 219)" />

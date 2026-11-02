@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { ConfirmHintArtwork, DialHint, DualLevelScreen, NightLightScreen, NightLightHoldScreen, IpArtwork } from "./v3-controls";
 import { MENU_ITEMS, MODE_COLORS, MODES, PumpMode, ScreenState, V3_CONFIG } from "./v3-config";
 
@@ -31,6 +31,16 @@ function HeaderStatus({ connected, battery = 80 }: { connected: boolean; battery
       <rect x="20.8" y="3" width="2.2" height="5" rx="1" fill="#fff" opacity=".86" />
       <rect x="2.5" y="2.5" width={15 * battery / 100} height="6" rx="1" fill="#fff" opacity=".86" />
     </g>
+  </g>;
+}
+
+function IpHomeHeaderStatus({ connected }: { connected: boolean }) {
+  const base = "/assets/v3-pro/home-figma/";
+  return <g className="pro-header-status" aria-label={connected ? "蓝牙已连接，电池充电中" : "蓝牙未连接，电池充电中"}>
+    {!connected && <image href={`${base}bluetooth-off.svg`} x="180" y="53" width="24" height="24" />}
+    <image href={`${base}battery-frame.svg`} x="220" y="53" width="30" height="20" />
+    <rect x="224" y="57" width="8" height="12" rx="2" fill="#3DAD77" />
+    <image href={`${base}charging.svg`} x="228" y="56" width="11" height="14" />
   </g>;
 }
 
@@ -254,6 +264,10 @@ function PumpScreenSvg({
   const isPaused = state === "paused" || leakFinal;
   const isPumping = state === "pumping" || isSealStatus;
   const showStartingHint = state === "pumping" && seconds < 5;
+  const isIpHome = state === "home" && theme === "ip";
+  const hintId = useId();
+  const ipHomeHintMaskId = `${hintId}-ip-home-hint-mask`;
+  const ipHomeHintShineId = `${hintId}-ip-home-hint-shine`;
   const hint = isPaused ? "Press to resume" : "Press to start pumping";
   const sealHint = state === "sealChecking" ? "Checking seal..." : state === "sealPassed" ? "Seal check passed" : "";
   const displayTitle = modeTitles[mode];
@@ -261,6 +275,15 @@ function PumpScreenSvg({
   return (
     <svg className={`pump-screen-svg pump-screen-svg-${state}${leakFinal ? " pump-screen-svg-leak-final" : ""}${lightOffFeedback ? " pump-screen-svg-light-off" : ""}`} viewBox="0 0 432 432" role="img" aria-label={`${modeTitles[mode]} ${state}`}>
       <defs>
+        {isIpHome && <>
+          <mask id={ipHomeHintMaskId} maskUnits="userSpaceOnUse" x="128.855" y="330.26" width="194.383" height="17.452" style={{ maskType: "alpha" }}>
+            <image href="/assets/v3-pro/home-figma/press-to-start.svg" x="128.855" y="330.26" width="194.383" height="17.452" />
+          </mask>
+          <linearGradient id={ipHomeHintShineId} gradientUnits="userSpaceOnUse" x1="32" y1="0" x2="128" y2="0">
+            <stop stopColor="#fff" stopOpacity="0" /><stop offset=".5" stopColor="#fff" stopOpacity="1" /><stop offset="1" stopColor="#fff" stopOpacity="0" />
+            <animateTransform attributeName="gradientTransform" type="translate" values="0 0;291 0;291 0" keyTimes="0;.75;1" dur="3.6s" repeatCount="indefinite" />
+          </linearGradient>
+        </>}
         <clipPath id={`screen-circle-${state}`}><circle cx="216" cy="216" r="176" /></clipPath>
         <linearGradient id="hint-shine-gradient" x1="-5%" y1="0" x2="45%" y2="0">
           <stop stopColor={modeShineColors[mode]} stopOpacity="0" /><stop offset=".25" stopColor={modeShineColors[mode]} stopOpacity=".18" /><stop offset=".5" stopColor={modeShineColors[mode]} stopOpacity=".58" /><stop offset=".75" stopColor={modeShineColors[mode]} stopOpacity=".18" /><stop offset="1" stopColor={modeShineColors[mode]} stopOpacity="0" />
@@ -277,10 +300,10 @@ function PumpScreenSvg({
       <rect width="432" height="432" fill="#000" />
       <image href={background} x="40" y="40" width="352" height="352" preserveAspectRatio="xMidYMid slice" clipPath={`url(#screen-circle-${state})`} />
       {theme === "ip" && !isSealStatus && <g clipPath={`url(#screen-circle-${state})`}><IpArtwork /></g>}
-      <HeaderStatus connected={bluetoothConnected} />
-      <text className="pump-svg-title" x="216" y="124" textAnchor="middle">{displayTitle}</text>
-      {((isPaused && !leakFinal) || state === "home") && <text className="pump-svg-hint" x="216" y={theme === "ip" ? 366 : 261} textAnchor="middle" style={{ fill: modeHintColors[mode] }}>{hint}</text>}
-      {((isPaused && !leakFinal) || state === "home") && <text className="pump-hint-shine-text" x="216" y={theme === "ip" ? 366 : 261} textAnchor="middle" style={{ fill: "url(#hint-shine-gradient)" }}>{hint}</text>}
+      {isIpHome ? <IpHomeHeaderStatus connected={bluetoothConnected} /> : <HeaderStatus connected={bluetoothConnected} />}
+      <text className={`pump-svg-title${isIpHome ? " pump-svg-title-ip-home" : ""}`} x="216" y={isIpHome ? "111" : "124"} textAnchor="middle">{displayTitle}</text>
+      {((isPaused && !leakFinal) || state === "home") && !isIpHome && <text className="pump-svg-hint" x="216" y="261" textAnchor="middle" style={{ fill: modeHintColors[mode] }}>{hint}</text>}
+      {((isPaused && !leakFinal) || state === "home") && !isIpHome && <text className="pump-hint-shine-text" x="216" y="261" textAnchor="middle" style={{ fill: "url(#hint-shine-gradient)" }}>{hint}</text>}
 
       {isPumping && <>
         {!isSealStatus && <text className="pump-svg-time" x="216" y={lightOffFeedback ? "213" : "226"} textAnchor="middle">{formatTime(seconds)}</text>}
@@ -320,12 +343,21 @@ function PumpScreenSvg({
         <text className="pump-hint-shine-text" x="216" y="286" textAnchor="middle" style={{ fill: "url(#final-shared-shine)" }}>Press and hold to end pumping</text>
       </g>}
 
-      <g className="pump-svg-values">
+      {isIpHome ? <g className="pump-svg-values pump-svg-values-ip-home">
+        <text x="164" y="310" textAnchor="end">L{leftLevel}</text>
+        <image href="/assets/v3-pro/home-figma/speed.svg" x="192" y="283" width="24" height="24" />
+        <text x="223" y="310" textAnchor="start">{speedLevel}</text>
+        <text x="268" y="310" textAnchor="start">R{rightLevel}</text>
+      </g> : <g className="pump-svg-values">
           <text x="154" y="327" textAnchor="middle">L{leftLevel}</text>
           <image href={lightOffFeedback ? "/assets/v3-pro/figma-light-off/speed-icon.svg" : "/assets/v5/icon/speed.svg"} x="194" y={lightOffFeedback ? "306" : "308"} width={lightOffFeedback ? "24" : "20"} height={lightOffFeedback ? "24" : "20"} />
           <text x="226" y="327" textAnchor="middle">{speedLevel}</text>
           <text x="278" y="327" textAnchor="middle">R{rightLevel}</text>
-      </g>
+      </g>}
+      {isIpHome && <g aria-label={hint}>
+        <rect x="128.855" y="330.26" width="194.383" height="17.452" fill="#AD7C89" mask={`url(#${ipHomeHintMaskId})`} />
+        <rect className="ip-home-hint-shine" x="128.855" y="330.26" width="194.383" height="17.452" fill={`url(#${ipHomeHintShineId})`} mask={`url(#${ipHomeHintMaskId})`} />
+      </g>}
     </svg>
   );
 }

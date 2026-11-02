@@ -939,14 +939,6 @@ export default function DeviceDemo() {
     setToast(stateLabels[target]);
   };
 
-  const jumpToLeakStep = (step: number) => {
-    if (pumpStatus === "idle") setSeconds(0);
-    setPumpStatus("paused");
-    setLeakStep(Math.max(0, Math.min(3, step)));
-    setState("leakCheck");
-    setToast(`吸奶计时会话已建立 · 严重漏气 ${step + 1}`);
-  };
-
   return (
     <main className="demo-shell" onPointerMove={resetIdle}>
       <header className="topbar">
@@ -1042,7 +1034,6 @@ export default function DeviceDemo() {
           <button disabled={pumpStatus !== "idle" || deviceControlsLocked} onClick={() => setState("theme")}>皮肤选择</button>
           <button onClick={reset}>重置演示</button>
           <button onClick={() => jumpToDemoState("sealChecking")}>启动自检</button>
-          {[0, 1, 2, 3].map((step) => <button key={`leak-debug-${step}`} onClick={() => jumpToLeakStep(step)}>严重漏气{step + 1}</button>)}
           <button onClick={() => jumpToDemoState("home")}>主页</button>
           <button onClick={() => { setBluetoothConnected((value) => !value); setToast(bluetoothConnected ? "蓝牙已断开" : "蓝牙已连接"); }}>{bluetoothConnected ? "断开蓝牙" : "连接蓝牙"}</button>
         </div>}

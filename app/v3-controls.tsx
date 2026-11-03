@@ -99,14 +99,14 @@ export function SidePauseConfirmation({ side, seconds, running, countdown }: { s
   </svg>;
 }
 
-export function NightLightScreen({ auto, level, dimmed, color }: { auto: boolean; level: number; dimmed: boolean; color: string }) {
+export function NightLightScreen({ auto, level, dimmed, color, showHint = true }: { auto: boolean; level: number; dimmed: boolean; color: string; showHint?: boolean }) {
   return <div className="night-screen" style={{ opacity: dimmed ? .5 : 1, "--night-color": color } as CSSProperties}>
     <svg className="dial-settings-svg" viewBox="0 0 432 432" role="img" aria-label={`Night Light ${auto ? "Auto" : level}`}>
       {["M61 150 A170 170 0 0 1 135 65", "M158 53 A170 170 0 0 1 274 53", "M297 65 A170 170 0 0 1 371 150"].map((d,i) => <path key={d} d={d} fill="none" stroke={i === (auto ? 0 : level - 1) ? color : "#252525"} strokeWidth="11" strokeLinecap="round" />)}
       <text x="216" y="221" textAnchor="middle" fontSize="56" fontWeight="600" fill="white">{auto ? "Auto" : level}</text>
       <text x="216" y="284" textAnchor="middle" fontSize="26" fill="#999">Brightness</text>
     </svg>
-    <NightLightHintArtwork />
+    {showHint && <NightLightHintArtwork />}
   </div>;
 }
 

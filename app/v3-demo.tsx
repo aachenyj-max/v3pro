@@ -982,6 +982,13 @@ function DeviceExperience({ solution, active, onSolutionChange }: { solution: 1 
         if (nightTimer.current) clearInterval(nightTimer.current);
         nightTimer.current = null;
         setNightHoldProgress(100);
+        if (nightReturn.current === "off" && (state === "nightLight" || state === "off" || state === "powerOnPrompt")) {
+          setTimeout(() => { nightHeld.current = false; }, 250);
+          setNightOn(false); setNightClosing(false); setNightHoldProgress(0); setNightDimmed(false);
+          setState("off");
+          setToast("夜灯已关闭，设备已关机");
+          return;
+        }
         nightCompletionTimer.current = setTimeout(() => {
           nightCompletionTimer.current = null;
           setTimeout(() => { nightHeld.current = false; }, 250);
@@ -1352,7 +1359,10 @@ function DeviceExperience({ solution, active, onSolutionChange }: { solution: 1 
               <DualLevelScreen left={leftLevel} right={rightLevel} color={modeColor} limited={levelLimit} status={levelLimit ? undefined : suctionStatus} arcLeft={displayedArcLeft} arcRight={displayedArcRight} maxLevel={modeMaxLevel} animate={!suctionFeedback.left && !suctionFeedback.right} />
               {pumpStatus === "idle" ? <DialHint text="Turn left - · Turn right +" shine fontSize={19} fontWeight={500} /> : <MiniTimer seconds={seconds} status={pumpStatus} dual />}
             </>}
-            {state === "nightLight" && nightOn && !showingNightPowerOnHold && <NightLightScreen auto={nightAuto} level={nightLevel} dimmed={nightDimmed} color={modeColor} />}
+            {state === "nightLight" && nightOn && !showingNightPowerOnHold && <>
+              <NightLightScreen auto={nightAuto} level={nightLevel} dimmed={nightDimmed} color={modeColor} showHint={solution !== 2 || pumpStatus === "idle"} />
+              {solution === 2 && pumpStatus !== "idle" && <MiniTimer seconds={seconds} status={pumpStatus} />}
+            </>}
             {nightOffFeedback && <NightLightOffScreen remaining={nightOffRemaining} />}
             {nightClosing && <NightLightHoldScreen progress={nightHoldProgress} />}
             {state === "level" && solution === 2 && activeControl !== "speed" && <div className="dynamic-level">
@@ -1388,7 +1398,12 @@ function DeviceExperience({ solution, active, onSolutionChange }: { solution: 1 
             <button onClick={() => openLevel("speed")} disabled={deviceControlsLocked} aria-label="Speed"><img className="button-art" src="/assets/v5/device-buttons/Speed.svg" alt="Speed" /></button>
             {solution === 1 ? <button onClick={() => openLevel("left")} disabled={deviceControlsLocked} aria-label="Left"><img className="button-art" src="/assets/v5/device-buttons/Left.svg" alt="Left" /></button>
               : <button onClick={openCombinedLevel} disabled={deviceControlsLocked} aria-label="Level：切换左侧和右侧档位"><img className="button-art" src="/assets/v3-pro/controls/combined-level-key.svg" alt="Level" /></button>}
-            {solution === 2 && <button onClick={handlePauseButton} disabled={deviceControlsLocked} aria-label="Start/Pause"><img className="button-art" src="/assets/v5/device-buttons/SP.svg" alt="Start/Pause" /></button>}
+            {solution === 2 && <button onClick={() => { if (!clickLock.current) handlePauseButton(); }}
+              onPointerDown={beginHold} onPointerUp={stopHold} onPointerCancel={stopHold} onPointerLeave={stopHold}
+              onContextMenu={event => event.preventDefault()}
+              disabled={deviceControlsLocked} aria-label="Start/Pause：点按开始或暂停，长按结束并关机">
+              <img className="button-art" src="/assets/v5/device-buttons/SP.svg" alt="Start/Pause" />
+            </button>}
             <button className={`night-control-button${state === "off" || state === "boot" ? " is-unpowered" : ""}`} data-asset-slot="night-light-key" onClick={toggleNight}
               onPointerDown={beginNightHold} onPointerUp={stopNightHold} onPointerCancel={stopNightHold} onPointerLeave={stopNightHold}
               disabled={nightOffFeedback || ["boot", "poweringOff", "endingPump", "theme"].includes(state)} aria-label="夜灯：短按开启，长按两秒关闭">
@@ -1402,7 +1417,7 @@ function DeviceExperience({ solution, active, onSolutionChange }: { solution: 1 
 
       <aside className="guide-panel">
         <button className="panel-toggle" onClick={() => setShowGuide(!showGuide)}>{showGuide ? "收起操作指南" : "展开操作指南"}</button>
-        {showGuide && <div className="guide-content"><h2>Demo 操作指南</h2><div className="guide-grid"><div><b>鼠标 / 触控板</b><p>点按：确认 / 开始暂停</p><p>长按 2 秒：开机</p><p>长按 2 秒：结束并关机</p><p>圆盘上滚轮：双侧吸力 / 亮度</p>{solution === 2 && <p>Level 键：左侧 ↔ 右侧循环切换；点按圆屏或静默超时返回一级页面</p>}</div></div></div>}
+        {showGuide && <div className="guide-content"><h2>Demo 操作指南</h2><div className="guide-grid"><div><b>鼠标 / 触控板</b><p>点按：确认 / 开始暂停</p><p>长按 2 秒：开机</p><p>长按 2 秒：结束并关机</p><p>圆盘上滚轮：双侧吸力 / 亮度</p>{solution === 2 && <><p>Level 键：左侧 ↔ 右侧循环切换；点按圆屏或静默超时返回一级页面</p><p>Start/Pause 键：点按开始或暂停；长按结束并关机</p></>}</div></div></div>}
       </aside>
 
       <aside className="debug-panel">

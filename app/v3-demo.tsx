@@ -837,10 +837,11 @@ function DeviceExperience({ solution, active, onSolutionChange }: { solution: 1 
   }, [activeControl, commitSidePause, confirmLevel, leftLevel, rightLevel, isPowered, levelLimit, mode, pauseSide, pumpStatus, state, wake]);
 
   const openCombinedLevel = useCallback(() => {
-    // Level cycles from the first page to L, then R, then confirms back to the first page.
-    const nextSide = state === "sidePauseConfirm" ? pauseSide : state === "level" && activeControl !== "speed" ? "right" : "left";
+    if (state === "sidePauseConfirm") return;
+    // The combined key alternates between sides; only dial confirmation or inactivity exits.
+    const nextSide = state === "level" && activeControl === "left" ? "right" : "left";
     openLevel(nextSide);
-  }, [activeControl, openLevel, pauseSide, state]);
+  }, [activeControl, openLevel, state]);
 
   useEffect(() => {
     if (state !== "sidePauseConfirm") return;
@@ -1384,7 +1385,7 @@ function DeviceExperience({ solution, active, onSolutionChange }: { solution: 1 
             {MODES.map((item) => <button key={item.id} onClick={() => showTemporary(item.id)} disabled={deviceControlsLocked} aria-label={item.id === "stimulation" ? "Stimulation" : item.label}><img className="button-art" src={item.id === "stimulation" ? "/assets/v3-pro/controls/stimulation-key.svg" : "/assets/v5/device-buttons/Expression.svg"} alt={item.id === "stimulation" ? "Stimulation" : item.label} /></button>)}
             <button onClick={() => openLevel("speed")} disabled={deviceControlsLocked} aria-label="Speed"><img className="button-art" src="/assets/v5/device-buttons/Speed.svg" alt="Speed" /></button>
             {solution === 1 ? <button onClick={() => openLevel("left")} disabled={deviceControlsLocked} aria-label="Left"><img className="button-art" src="/assets/v5/device-buttons/Left.svg" alt="Left" /></button>
-              : <button onClick={openCombinedLevel} disabled={deviceControlsLocked} aria-label="Level：左侧、右侧、返回一级页面"><img className="button-art" src="/assets/v3-pro/controls/combined-level-key.svg" alt="Level" /></button>}
+              : <button onClick={openCombinedLevel} disabled={deviceControlsLocked} aria-label="Level：切换左侧和右侧档位"><img className="button-art" src="/assets/v3-pro/controls/combined-level-key.svg" alt="Level" /></button>}
             {solution === 2 && <button onClick={handlePauseButton} disabled={deviceControlsLocked} aria-label="Start/Pause"><img className="button-art" src="/assets/v5/device-buttons/SP.svg" alt="Start/Pause" /></button>}
             <button className={`night-control-button${state === "off" || state === "boot" ? " is-unpowered" : ""}`} data-asset-slot="night-light-key" onClick={toggleNight}
               onPointerDown={beginNightHold} onPointerUp={stopNightHold} onPointerCancel={stopNightHold} onPointerLeave={stopNightHold}
@@ -1399,7 +1400,7 @@ function DeviceExperience({ solution, active, onSolutionChange }: { solution: 1 
 
       <aside className="guide-panel">
         <button className="panel-toggle" onClick={() => setShowGuide(!showGuide)}>{showGuide ? "收起操作指南" : "展开操作指南"}</button>
-        {showGuide && <div className="guide-content"><h2>Demo 操作指南</h2><div className="guide-grid"><div><b>鼠标 / 触控板</b><p>点按：确认 / 开始暂停</p><p>长按 2 秒：开机</p><p>长按 2 秒：结束并关机</p><p>圆盘上滚轮：双侧吸力 / 亮度</p>{solution === 2 && <p>Level 键：左侧 → 右侧 → 返回一级页面；旋钮调节与方案一相同</p>}</div></div></div>}
+        {showGuide && <div className="guide-content"><h2>Demo 操作指南</h2><div className="guide-grid"><div><b>鼠标 / 触控板</b><p>点按：确认 / 开始暂停</p><p>长按 2 秒：开机</p><p>长按 2 秒：结束并关机</p><p>圆盘上滚轮：双侧吸力 / 亮度</p>{solution === 2 && <p>Level 键：左侧 ↔ 右侧循环切换；点按圆屏或静默超时返回一级页面</p>}</div></div></div>}
       </aside>
 
       <aside className="debug-panel">

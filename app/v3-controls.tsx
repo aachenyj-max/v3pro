@@ -1,4 +1,4 @@
-import { useId, type CSSProperties } from "react";
+import { memo, useId, type CSSProperties } from "react";
 
 function CutoutHintArtwork({ asset, x, y, width, height, shine }: { asset: string; x: number; y: number; width: number; height: number; shine: boolean }) {
   const id = useId();
@@ -39,7 +39,7 @@ export function DialHint({ text = "Press the knob to confirm", shine = false, fo
   const shineId = `${id}-shine`;
   return <svg className="dial-hint" viewBox="0 0 432 432" aria-hidden="true">
     <defs>
-      <path id={pathId} d="M106 322 Q216 420 326 322" />
+      <path id={pathId} d="M108 345 Q216 424 324 345" />
       {shine && <linearGradient id={shineId} gradientUnits="userSpaceOnUse" x1="-150" y1="0" x2="0" y2="0">
         <stop stopColor="#fff" stopOpacity="0" />
         <stop offset=".3" stopColor="#fff" stopOpacity=".12" />
@@ -54,14 +54,48 @@ export function DialHint({ text = "Press the knob to confirm", shine = false, fo
   </svg>;
 }
 
-export function DualLevelScreen({ left, right, color, limited }: { left: number; right: number; color: string; limited: boolean }) {
+export const SuctionStatusText = memo(function SuctionStatusText({ text, y, fontSize }: { text: string; y: number; fontSize: number }) {
+  const id = useId();
+  return <g aria-label={text}>
+    <defs>
+      <mask id={`${id}-text-mask`} maskUnits="userSpaceOnUse" x="0" y="0" width="432" height="432">
+        <text className="suction-status-text" x="216" y={y} fill="#fff" fontSize={fontSize} fontWeight="500" textAnchor="middle">{text}</text>
+      </mask>
+      <linearGradient id={`${id}-sweep`} gradientUnits="userSpaceOnUse" x1="95" y1="0" x2="215" y2="0">
+        <stop stopColor="#fff" stopOpacity="0" />
+        <stop offset=".5" stopColor="#fff" stopOpacity=".95" />
+        <stop offset="1" stopColor="#fff" stopOpacity="0" />
+      </linearGradient>
+    </defs>
+    <text className="suction-status-text" x="216" y={y} style={{ fill: "#999" }} fontSize={fontSize} fontWeight="500" textAnchor="middle">{text}</text>
+    <g mask={`url(#${id}-text-mask)`} aria-hidden="true">
+      <rect className="suction-status-sweep" x="95" y={y - fontSize} width="120" height={fontSize * 1.35} fill={`url(#${id}-sweep)`} />
+    </g>
+  </g>;
+});
+
+export function DualLevelScreen({ left, right, color, limited, increaseLimit = 3, status, arcLeft = left, arcRight = right, animate = true, maxLevel = 15 }: { left: number; right: number; color: string; limited: boolean; increaseLimit?: number; status?: string; arcLeft?: number; arcRight?: number; animate?: boolean; maxLevel?: number }) {
   // Match the Figma bottom opening: arc ends sit outside the 212px timer.
   const paths = ["M88 329 A170 170 0 0 1 178 50", "M344 329 A170 170 0 0 0 254 50"];
   return <svg className="dial-settings-svg" viewBox="0 0 432 432" role="img" aria-label={`左侧 ${left}，右侧 ${right}${limited ? "，已达单次增档上限" : ""}`}>
-    {paths.map((d,i) => <g key={d}><path d={d} stroke="#252525" strokeWidth="11" strokeLinecap="round" fill="none" /><path d={d} stroke={color} strokeWidth="11" strokeLinecap="round" fill="none" pathLength="100" strokeDasharray={`${(i === 0 ? left : right) / 15 * 100} 100`} /></g>)}
-    <g fill="white" fontSize="56" fontWeight="600" textAnchor="middle"><text x="141" y="234">{left}</text><text x="291" y="234">{right}</text></g>
-    {!limited && <g fill="#999" fontSize="26" textAnchor="middle"><text x="141" y="281">L</text><text x="291" y="281">R</text></g>}
-    {limited && <g fill={color} fontSize="19" textAnchor="middle"><text x="216" y="272">For safety,</text><text x="216" y="298">Up to 3 levels at a time.</text></g>}
+    {paths.map((d,i) => <g key={d}><path d={d} stroke="#252525" strokeWidth="11" strokeLinecap="round" fill="none" /><path className={animate ? "level-progress-path" : "suction-progress-path"} d={d} stroke={color} strokeWidth="11" strokeLinecap="round" fill="none" pathLength="100" strokeDasharray={`${(i === 0 ? arcLeft : arcRight) / maxLevel * 100} 100`} /></g>)}
+    <g fill="white" fontSize="69" fontWeight="600" textAnchor="middle"><text x="141" y="228">{left}</text><text x="291" y="228">{right}</text></g>
+    {!limited && !status && <g fill="#999" fontSize="26" fontWeight="500" textAnchor="middle"><text x="141" y="274">L</text><text x="291" y="274">R</text></g>}
+    {status && <SuctionStatusText text={status} y={273} fontSize={26} />}
+    {limited && <g fill={color} fontSize="22" fontWeight="500" textAnchor="middle"><text x="216" y="266">For safety,</text><text x="216" y="295">Up to {increaseLimit} levels at a time.</text></g>}
+  </svg>;
+}
+
+export function SidePauseConfirmation({ side, seconds, running, countdown }: { side: "left" | "right"; seconds: string; running: boolean; countdown: number }) {
+  const name = side === "left" ? "Left" : "Right";
+  return <svg className="dial-settings-svg" viewBox="0 0 432 432" role="img" aria-label={`Pause ${name} pump? Increase the level to resume. Press knob to confirm. ${running ? seconds : `${countdown} seconds remaining`}`}>
+    <circle cx="216" cy="216" r="216" fill="#000" />
+    <image href="/assets/v3-pro/suction/pause-confirm.svg" x="174" y="79" width="84" height="84" />
+    <text x="216" y="208" fill="#fff" fontSize="26" fontWeight="500" textAnchor="middle">Pause {name} pump?</text>
+    <text x="216" y="249" fill="#999" fontSize="26" fontWeight="500" textAnchor="middle">Increase the level to resume.</text>
+    <text x="216" y="283" fill="#999" fontSize="26" fontWeight="500" textAnchor="middle">Press knob to confirm.</text>
+    {running && <g><image href="/assets/v5/timer/Union.svg" x="110" y="329" width="212" height="63" /><image href="/assets/v5/timer/State=Pause.svg" x="168" y="348" width="18" height="19" /><text x="205" y="367" fill="#fff" fontSize="23" fontWeight="600">{seconds}</text></g>}
+    {!running && <text x="216" y="385" fill="#999" fontSize="19" fontWeight="500" textAnchor="middle">{countdown} s</text>}
   </svg>;
 }
 
@@ -89,7 +123,7 @@ export function NightLightOffScreen({ remaining }: { remaining: number }) {
 }
 
 export function NightLightHoldScreen({ progress }: { progress: number }) {
-  const remaining = Math.max(1, Math.ceil((100 - progress) / 50));
+  const remaining = Math.max(0, Math.ceil((100 - progress) / 50));
   const base = "/assets/v3-pro/controls/";
   const holdArc = "M47.9056 288.526 A170 170 0 1 1 304.366 288.216";
   const completed = Math.max(0, Math.min(100, progress));

@@ -5,11 +5,13 @@ import { ConfirmHintArtwork, DialHint, DualLevelScreen, SidePauseConfirmation, N
 import { MENU_ITEMS, MODE_COLORS, MODES, PumpMode, ScreenState, V3_CONFIG, levelForSuctionKpa, maxLevelForMode, suctionKpa } from "./v3-config";
 
 type SuctionFeedback = {
-  phase: "adjusting" | "complete";
+  phase: "pending" | "adjusting" | "complete";
   side: "left" | "right" | "both";
   leftKpa: number;
   rightKpa: number;
 };
+
+const SUCTION_SETTLE_DELAY_MS = 1000;
 
 const fixedImages: Partial<Record<ScreenState, string>> = {
   powerOnPrompt: "/assets/v3-pro/power/开机页.svg",
@@ -531,9 +533,9 @@ export default function DeviceDemo() {
   const [pauseSide, setPauseSide] = useState<"left" | "right">("left");
   const [pauseCountdown, setPauseCountdown] = useState(5);
   const [suctionFeedback, setSuctionFeedback] = useState<SuctionFeedback | null>(null);
-  const [postSuctionLabel, setPostSuctionLabel] = useState(false);
   const actualKpa = useRef({ left: suctionKpa(mode, leftLevel), right: suctionKpa(mode, rightLevel) });
   const suctionRiseAnchor = useRef({ left: suctionKpa(mode, leftLevel), right: suctionKpa(mode, rightLevel) });
+  const suctionDelayTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const suctionTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const suctionStageTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const nightReturn = useRef<ScreenState>("off");
@@ -552,8 +554,10 @@ export default function DeviceDemo() {
   const lampIntensity = nightAuto ? .88 - ambientLight / 100 * .56 : [0, .32, .62, 1][nightLevel];
 
   const clearSuctionTimers = useCallback(() => {
+    if (suctionDelayTimer.current) clearTimeout(suctionDelayTimer.current);
     if (suctionTimer.current) clearInterval(suctionTimer.current);
     if (suctionStageTimer.current) clearTimeout(suctionStageTimer.current);
+    suctionDelayTimer.current = null;
     suctionTimer.current = null;
     suctionStageTimer.current = null;
   }, []);
@@ -696,46 +700,48 @@ export default function DeviceDemo() {
     const activeSides = side === "both" ? (["left", "right"] as const) : ([side] as const);
     const gap = Math.max(...activeSides.map(value => resume ? Math.abs(target[value] - initial[value]) : target[value] - initial[value]));
     const cumulativeRise = Math.max(...activeSides.map(value => target[value] - suctionRiseAnchor.current[value]));
-    const wasAdjusting = suctionTimer.current !== null;
+    const wasAdjusting = suctionDelayTimer.current !== null || suctionTimer.current !== null;
     clearSuctionTimers();
-    setPostSuctionLabel(false);
     if (resume ? gap <= 0 : !increasing || (gap <= 3 && cumulativeRise <= 3 && !wasAdjusting)) {
       actualKpa.current = target;
       setSuctionFeedback(null);
-      if (resume) setPostSuctionLabel(true);
+      if (resume) setState(current => current === "level" || current === "bothLevel" ? levelReturnState.current : current);
       return false;
     }
-    setSuctionFeedback({ phase: "adjusting", side, leftKpa: initial.left, rightKpa: initial.right });
-    const startedAt = Date.now();
-    const duration = Math.max(resume ? 600 : 1200, gap / 3 * 1000);
-    suctionTimer.current = setInterval(() => {
-      const progress = Math.min(1, (Date.now() - startedAt) / duration);
-      const current = {
-        left: initial.left + (target.left - initial.left) * progress,
-        right: initial.right + (target.right - initial.right) * progress,
-      };
-      actualKpa.current = current;
-      setSuctionFeedback({ phase: "adjusting", side, leftKpa: current.left, rightKpa: current.right });
-      if (progress < 1) return;
-      if (suctionTimer.current) clearInterval(suctionTimer.current);
-      suctionTimer.current = null;
-      suctionStageTimer.current = setTimeout(() => {
-        setSuctionFeedback({ phase: "complete", side, leftKpa: target.left, rightKpa: target.right });
+    setSuctionFeedback({ phase: "pending", side, leftKpa: initial.left, rightKpa: initial.right });
+    suctionDelayTimer.current = setTimeout(() => {
+      suctionDelayTimer.current = null;
+      setSuctionFeedback({ phase: "adjusting", side, leftKpa: initial.left, rightKpa: initial.right });
+      const startedAt = Date.now();
+      const duration = Math.max(resume ? 600 : 1200, gap / 3 * 1000);
+      suctionTimer.current = setInterval(() => {
+        const progress = Math.min(1, (Date.now() - startedAt) / duration);
+        const current = {
+          left: initial.left + (target.left - initial.left) * progress,
+          right: initial.right + (target.right - initial.right) * progress,
+        };
+        actualKpa.current = current;
+        setSuctionFeedback({ phase: "adjusting", side, leftKpa: current.left, rightKpa: current.right });
+        if (progress < 1) return;
+        if (suctionTimer.current) clearInterval(suctionTimer.current);
+        suctionTimer.current = null;
         suctionStageTimer.current = setTimeout(() => {
-          setSuctionFeedback(null);
-          setPostSuctionLabel(true);
-          suctionStageTimer.current = null;
-        }, 3000);
-      }, 110);
-    }, 80);
+          setSuctionFeedback({ phase: "complete", side, leftKpa: target.left, rightKpa: target.right });
+          suctionStageTimer.current = setTimeout(() => {
+            setSuctionFeedback(null);
+            setState(current => current === "level" || current === "bothLevel" ? levelReturnState.current : current);
+            suctionStageTimer.current = null;
+          }, 3000);
+        }, 110);
+      }, 80);
+    }, SUCTION_SETTLE_DELAY_MS);
     return true;
   }, [clearSuctionTimers, mode]);
 
   const confirmLevel = useCallback((automatic = false) => {
     if (levelConfirmTimer.current) clearTimeout(levelConfirmTimer.current);
     levelConfirmTimer.current = null;
-    setPostSuctionLabel(false);
-    if (!suctionTimer.current) {
+    if (!suctionDelayTimer.current && !suctionTimer.current) {
       actualKpa.current = { left: suctionKpa(mode, leftLevel), right: suctionKpa(mode, rightLevel) };
     }
     setLevelLimit(false);
@@ -770,7 +776,6 @@ export default function DeviceDemo() {
     if (levelConfirmTimer.current) clearTimeout(levelConfirmTimer.current);
     levelConfirmTimer.current = null;
     if (state !== "level" && state !== "bothLevel") {
-      setPostSuctionLabel(false);
       levelReturnState.current = state === "menu" && pumpStatus === "running"
         ? "pumping"
         : state === "standby"
@@ -800,12 +805,12 @@ export default function DeviceDemo() {
     if ((state !== "level" && state !== "bothLevel") || levelLimit) return;
     if (levelConfirmTimer.current) clearTimeout(levelConfirmTimer.current);
     if (suctionFeedback) return;
-    levelConfirmTimer.current = setTimeout(() => confirmLevel(true), postSuctionLabel ? 1000 : 5000);
+    levelConfirmTimer.current = setTimeout(() => confirmLevel(true), 5000);
     return () => {
       if (levelConfirmTimer.current) clearTimeout(levelConfirmTimer.current);
       levelConfirmTimer.current = null;
     };
-  }, [activeControl, confirmLevel, levelLimit, postSuctionLabel, state, suctionFeedback]);
+  }, [activeControl, confirmLevel, levelLimit, state, suctionFeedback]);
 
   useEffect(() => () => {
     if (levelConfirmTimer.current) clearTimeout(levelConfirmTimer.current);
@@ -976,7 +981,6 @@ export default function DeviceDemo() {
       return;
     }
     if (state === "paused" || state === "home" || state === "pumping") {
-      setPostSuctionLabel(false);
       levelEntry.current = { left: leftLevel, right: rightLevel };
       suctionRiseAnchor.current = { left: suctionKpa(mode, leftLevel), right: suctionKpa(mode, rightLevel) };
       levelReturnState.current = state;
@@ -1207,7 +1211,7 @@ export default function DeviceDemo() {
     levelConfirmTimer.current = null;
     if (modeSwitchTimer.current) clearTimeout(modeSwitchTimer.current);
     modeSwitchTimer.current = null;
-    stopHold(); clearTransition(); clearSuctionTimers(); setSuctionFeedback(null); setPostSuctionLabel(false); pausePromptSeen.current = { left: false, right: false }; pendingSidePause.current = null; pendingLevelLimit.current = null;
+    stopHold(); clearTransition(); clearSuctionTimers(); setSuctionFeedback(null); pausePromptSeen.current = { left: false, right: false }; pendingSidePause.current = null; pendingLevelLimit.current = null;
     actualKpa.current = { left: suctionKpa(V3_CONFIG.defaultMode, V3_CONFIG.stimulationDefaultLevel), right: suctionKpa(V3_CONFIG.defaultMode, V3_CONFIG.stimulationDefaultLevel) };
     suctionRiseAnchor.current = { ...actualKpa.current };
     setState("off"); setMode(V3_CONFIG.defaultMode); setSuctionLevels(defaultSuctionLevels()); setPauseCountdown(5);
@@ -1254,7 +1258,7 @@ export default function DeviceDemo() {
             {state === "modeSuccess" && <SuccessTimerArea seconds={seconds} status={pumpStatus} />}
             {state === "leakCheck" && leakStep < 3 && <LeakInspectionScreen key={`leak-step-${leakStep}`} step={leakStep} />}
             {state === "leakCheck" && leakStep === 3 && <LeakFinalAnimation key={`leak-final-${mode}`} />}
-            {(state === "home" || state === "pumping" || state === "paused" || state === "sealChecking" || state === "sealPassed") && <PumpScreenSvg key={`pump-${state}-${mode}`} state={state} mode={mode} seconds={seconds} leftLevel={leftLevel} rightLevel={rightLevel} speedLevel={speedLevel} bluetoothConnected={bluetoothConnected} theme={theme} suctionFeedback={state === "home" || state === "pumping" ? suctionFeedback : null} />}
+            {(state === "home" || state === "pumping" || state === "paused" || state === "sealChecking" || state === "sealPassed") && <PumpScreenSvg key={`pump-${state}-${mode}`} state={state} mode={mode} seconds={seconds} leftLevel={leftLevel} rightLevel={rightLevel} speedLevel={speedLevel} bluetoothConnected={bluetoothConnected} theme={theme} suctionFeedback={(state === "home" || state === "pumping") && suctionFeedback?.phase !== "pending" ? suctionFeedback : null} />}
             {state === "sidePauseConfirm" && <SidePauseConfirmation side={pauseSide} seconds={formatTime(seconds)} running={pumpStatus === "running"} countdown={pauseCountdown} />}
             {state === "theme" && <div className="theme-picker">
               <h2>Theme Settings</h2><p>Turn the knob to select a theme</p>

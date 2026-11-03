@@ -54,7 +54,7 @@ export function DialHint({ text = "Press the knob to confirm", shine = false, fo
   </svg>;
 }
 
-export const SuctionStatusText = memo(function SuctionStatusText({ text, y, fontSize }: { text: string; y: number; fontSize: number }) {
+export const SuctionStatusText = memo(function SuctionStatusText({ text, y, fontSize, color = "#999" }: { text: string; y: number; fontSize: number; color?: string }) {
   const id = useId();
   return <g aria-label={text}>
     <defs>
@@ -67,7 +67,7 @@ export const SuctionStatusText = memo(function SuctionStatusText({ text, y, font
         <stop offset="1" stopColor="#fff" stopOpacity="0" />
       </linearGradient>
     </defs>
-    <text className="suction-status-text" x="216" y={y} style={{ fill: "#999" }} fontSize={fontSize} fontWeight="500" textAnchor="middle">{text}</text>
+    <text className="suction-status-text" x="216" y={y} style={{ fill: color }} fontSize={fontSize} fontWeight="500" textAnchor="middle">{text}</text>
     <g mask={`url(#${id}-text-mask)`} aria-hidden="true">
       <rect className="suction-status-sweep" x="95" y={y - fontSize} width="120" height={fontSize * 1.35} fill={`url(#${id}-sweep)`} />
     </g>

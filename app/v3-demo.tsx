@@ -580,8 +580,6 @@ function DeviceExperience({ solution, active, onSolutionChange }: { solution: 1 
   const suctionDelayTimer = useRef<Record<SuctionSide, ReturnType<typeof setTimeout> | null>>({ left: null, right: null });
   const suctionTimer = useRef<Record<SuctionSide, ReturnType<typeof setInterval> | null>>({ left: null, right: null });
   const suctionStageTimer = useRef<Record<SuctionSide, ReturnType<typeof setTimeout> | null>>({ left: null, right: null });
-  const stateRef = useRef(state);
-  stateRef.current = state;
   const nightReturn = useRef<ScreenState>("off");
   const nightTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const nightCompletionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -740,10 +738,9 @@ function DeviceExperience({ solution, active, onSolutionChange }: { solution: 1 
     setToast("检测到严重漏气，吸奶已暂停");
   }, [pumpStatus]);
 
-  const beginSuctionFeedback = useCallback((side: "left" | "right" | "both", levels: { left: number; right: number }, resume = false, increasing = true) => {
+  const beginSuctionFeedback = useCallback((side: "left" | "right" | "both", levels: { left: number; right: number }, increasing = true, resume = false) => {
     const target = { left: suctionKpa(mode, levels.left), right: suctionKpa(mode, levels.right) };
     const activeSides = side === "both" ? suctionSides : [side];
-    let started = false;
     for (const currentSide of activeSides) {
       const initial = actualKpa.current[currentSide];
       const gap = resume ? Math.abs(target[currentSide] - initial) : target[currentSide] - initial;
@@ -755,7 +752,6 @@ function DeviceExperience({ solution, active, onSolutionChange }: { solution: 1 
         setSuctionFeedback(current => ({ ...current, [currentSide]: null }));
         continue;
       }
-      started = true;
       setSuctionFeedback(current => ({ ...current, [currentSide]: { phase: "pending", kpa: initial } }));
       suctionDelayTimer.current[currentSide] = setTimeout(() => {
         suctionDelayTimer.current[currentSide] = null;
@@ -771,8 +767,6 @@ function DeviceExperience({ solution, active, onSolutionChange }: { solution: 1 
           if (suctionTimer.current[currentSide]) clearInterval(suctionTimer.current[currentSide]);
           suctionTimer.current[currentSide] = null;
           suctionStageTimer.current[currentSide] = setTimeout(() => {
-            // A completed suction ramp starts a new three-level adjustment window.
-            levelEntry.current[currentSide] = levels[currentSide];
             suctionRiseAnchor.current[currentSide] = target[currentSide];
             setSuctionFeedback(current => ({ ...current, [currentSide]: { phase: "complete", kpa: target[currentSide] } }));
             suctionStageTimer.current[currentSide] = null;
@@ -780,8 +774,6 @@ function DeviceExperience({ solution, active, onSolutionChange }: { solution: 1 
         }, 80);
       }, SUCTION_SETTLE_DELAY_MS);
     }
-    if (resume && !started && (stateRef.current === "level" || stateRef.current === "bothLevel")) setState(levelReturnState.current);
-    return started;
   }, [clearSuctionTimers, mode]);
 
   const confirmLevel = useCallback((automatic = false) => {
@@ -823,6 +815,7 @@ function DeviceExperience({ solution, active, onSolutionChange }: { solution: 1 
     if (levelConfirmTimer.current) clearTimeout(levelConfirmTimer.current);
     levelConfirmTimer.current = null;
     if (state !== "level" && state !== "bothLevel") {
+      levelEntry.current = { left: leftLevel, right: rightLevel };
       levelReturnState.current = state === "menu" && pumpStatus === "running"
         ? "pumping"
         : state === "standby"
@@ -831,7 +824,6 @@ function DeviceExperience({ solution, active, onSolutionChange }: { solution: 1 
     }
     if (state === "standby") { wake(); return; }
     if (state === "level" && activeControl === side) { confirmLevel(false); return; }
-    levelEntry.current = { left: leftLevel, right: rightLevel };
     if (side !== "speed") suctionRiseAnchor.current[side] = suctionKpa(mode, side === "left" ? leftLevel : rightLevel);
     setLevelLimit(false);
     setLevelLimitPreview(null);
@@ -894,9 +886,15 @@ function DeviceExperience({ solution, active, onSolutionChange }: { solution: 1 
       setLevelLimitPreview(null);
     }, 1000);
     const hideTimer = setTimeout(() => {
+      // The rejected step stays rejected; the accepted level starts the next three-level window.
+      if (pending.side === "both") levelEntry.current = { ...pending.levels };
+      else levelEntry.current[pending.side] = pending.levels[pending.side];
+      for (const side of pending.side === "both" ? suctionSides : [pending.side]) {
+        suctionRiseAnchor.current[side] = suctionKpa(pending.mode, pending.levels[side]);
+      }
       pendingLevelLimit.current = null;
       setLevelLimit(false);
-      beginSuctionFeedback(pending.side, pending.levels, true);
+      beginSuctionFeedback(pending.side, pending.levels, true, true);
     }, 2000);
     return () => { clearTimeout(rollbackTimer); clearTimeout(hideTimer); };
   }, [beginSuctionFeedback, levelLimit]);
@@ -1010,9 +1008,8 @@ function DeviceExperience({ solution, active, onSolutionChange }: { solution: 1 
     if (nightOffFeedback) return;
     if (state === "standby") { wake("home"); return; }
     const gestureDelta = Math.abs(event.deltaY) >= Math.abs(event.deltaX) ? event.deltaY : -event.deltaX;
-    const suctionAdjusting = (state === "level" || state === "bothLevel") &&
-      (activeSuctionFeedback?.phase === "pending" || activeSuctionFeedback?.phase === "adjusting");
-    if (wheelGestureLocked.current && !suctionAdjusting && !(state === "sidePauseConfirm" && gestureDelta > 0)) return;
+    const levelAdjustmentActive = state === "level" || state === "bothLevel";
+    if (wheelGestureLocked.current && !levelAdjustmentActive && !(state === "sidePauseConfirm" && gestureDelta > 0)) return;
     if (wheelGestureEndTimer.current) clearTimeout(wheelGestureEndTimer.current);
     wheelGestureEndTimer.current = setTimeout(() => {
       wheelGestureLocked.current = false;
@@ -1065,24 +1062,23 @@ function DeviceExperience({ solution, active, onSolutionChange }: { solution: 1 
       const limit = (value: number, initial: number, minimum: number) => Math.min(modeMaxLevel, initial + 3, Math.max(minimum, value + direction));
       const left = changesLeft ? limit(leftLevel, levelEntry.current.left, state === "bothLevel" ? 1 : 0) : leftLevel;
       const right = changesRight ? limit(rightLevel, levelEntry.current.right, state === "bothLevel" ? 1 : 0) : rightLevel;
-      const hit = direction > 0 && (changesLeft && leftLevel >= levelEntry.current.left + 3 || changesRight && rightLevel >= levelEntry.current.right + 3);
+      const hit = direction > 0 && (
+        changesLeft && leftLevel < modeMaxLevel && leftLevel >= levelEntry.current.left + 3 ||
+        changesRight && rightLevel < modeMaxLevel && rightLevel >= levelEntry.current.right + 3
+      );
       if (hit) {
-        const attempted = {
-          left: changesLeft ? Math.min(modeMaxLevel, leftLevel + 1) : leftLevel,
-          right: changesRight ? Math.min(modeMaxLevel, rightLevel + 1) : rightLevel,
-        };
         pendingLevelLimit.current = {
           side: state === "bothLevel" ? "both" : activeControl as "left" | "right",
           mode,
-          levels: {
-            left: leftLevel,
-            right: rightLevel,
-          },
+          levels: { left: leftLevel, right: rightLevel },
         };
         if (state === "bothLevel") clearSuctionTimers();
         else if (activeControl !== "speed") clearSuctionTimers(activeControl);
         setSuctionFeedback(current => state === "bothLevel" ? { left: null, right: null } : { ...current, [activeControl]: null });
-        setLevelLimitPreview(attempted);
+        setLevelLimitPreview({
+          left: changesLeft ? Math.min(modeMaxLevel, leftLevel + 1) : leftLevel,
+          right: changesRight ? Math.min(modeMaxLevel, rightLevel + 1) : rightLevel,
+        });
         if (levelConfirmTimer.current) clearTimeout(levelConfirmTimer.current);
         levelConfirmTimer.current = null;
         setLevelLimit(true);
@@ -1115,12 +1111,12 @@ function DeviceExperience({ solution, active, onSolutionChange }: { solution: 1 
               suctionRiseAnchor.current.right = suctionKpa(mode, right);
             }
           }
-          beginSuctionFeedback(state === "bothLevel" ? "both" : activeControl as "left" | "right", { left, right }, false, direction > 0);
+          beginSuctionFeedback(state === "bothLevel" ? "both" : activeControl as "left" | "right", { left, right }, direction > 0);
         }
       }
       if (state === "level" && activeControl === "speed") setSpeedLevel(value => Math.min(V3_CONFIG.maxSpeed, Math.max(1, value + direction)));
     }
-  }, [activeControl, activeSuctionFeedback, beginSuctionFeedback, clearSuctionTimers, leftLevel, levelLimit, mode, modeMaxLevel, rightLevel, nightAuto, nightLevel, nightOn, nightOffFeedback, state, wake]);
+  }, [activeControl, beginSuctionFeedback, clearSuctionTimers, leftLevel, levelLimit, mode, modeMaxLevel, rightLevel, nightAuto, nightLevel, nightOn, nightOffFeedback, state, wake]);
 
   const handleScreenClick = useCallback(() => {
     if (clickLock.current || nightOffFeedback) return;
@@ -1155,7 +1151,7 @@ function DeviceExperience({ solution, active, onSolutionChange }: { solution: 1 
     }
     if (state === "finish" || state === "modeSuccess" || state === "endingPump" || state === "poweringOff") return;
     togglePump();
-  }, [commitSidePause, confirmLevel, handlePauseButton, menuIndex, mode, nightOffFeedback, pumpStatus, showTemporary, state, theme, togglePump, wake]);
+  }, [commitSidePause, confirmLevel, handlePauseButton, levelLimit, menuIndex, mode, nightOffFeedback, pumpStatus, showTemporary, state, theme, togglePump, wake]);
 
   const clearTransition = useCallback(() => {
     if (transitionTimer.current) clearInterval(transitionTimer.current);

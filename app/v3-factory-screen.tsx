@@ -32,22 +32,29 @@ const dialLanguageRows = [
   { offset: 4, y: 319, opacity: 0.4 },
 ];
 
-function dialPoint(radius: number, degrees: number) {
+function dialPoint(radius: number, degrees: number, centerY = 216) {
   const angle = degrees * Math.PI / 180;
-  return `${216 + radius * Math.cos(angle)} ${216 + radius * Math.sin(angle)}`;
+  return `${216 + radius * Math.cos(angle)} ${centerY + radius * Math.sin(angle)}`;
 }
 
-// The longest selection hint is approximately 394 units at 19 px.
-// A 152° opening at the text radius gives it 435 units, including end clearance.
+// Keep a 152° opening for the longest localized hint.
 const dialArcStart = 166;
 const dialArcSpan = 208;
-const segmentGap = 3.2;
+const dialProgressRadius = 170.5;
+const dialProgressStroke = 11;
+const segmentGap = 6;
+const segmentSpan = (dialArcSpan - segmentGap * (DIAL_LANGUAGES.length - 1)) / DIAL_LANGUAGES.length;
 const dialLanguageSegments = DIAL_LANGUAGES.map((_, index) => {
-  const span = (dialArcSpan - segmentGap * (DIAL_LANGUAGES.length - 1)) / DIAL_LANGUAGES.length;
-  const start = dialArcStart + index * (span + segmentGap);
-  return `M ${dialPoint(173, start)} A 173 173 0 0 1 ${dialPoint(173, start + span)}`;
+  const start = dialArcStart + index * (segmentSpan + segmentGap);
+  const from = dialPoint(dialProgressRadius, start);
+  const to = dialPoint(dialProgressRadius, start + segmentSpan);
+  return `M ${from} A ${dialProgressRadius} ${dialProgressRadius} 0 0 1 ${to}`;
 });
-const hintCurve = `M ${dialPoint(164, 166)} A 164 164 0 0 0 ${dialPoint(164, 14)}`;
+
+// The outlined Figma text has a 170.6 px baseline radius, centered 1 px below the dial center.
+const hintRadius = 170.6;
+const hintCenterY = 217;
+const hintCurve = `M ${dialPoint(hintRadius, 166, hintCenterY)} A ${hintRadius} ${hintRadius} 0 0 0 ${dialPoint(hintRadius, 14, hintCenterY)}`;
 
 function LanguageDialHint({ text, languageId }: { text: string; languageId: DeviceLanguageId }) {
   const id = useId();
@@ -84,7 +91,7 @@ export function FactoryScreen({ state, languageId, useLanguageDial, resetProgres
   return <svg className="factory-screen" viewBox="0 0 432 432" aria-hidden="true">
     {state !== "resetRestart" && <circle cx="216" cy="216" r="175.5" fill="none" stroke="#171717" strokeDasharray="3 4" />}
     {state === "languageSelect" && <>
-      {(useLanguageDial ? dialLanguageSegments : languageSegments).map((path, index) => <path key={path} d={path} fill="none" stroke={index === languageIndex ? "#E2637E" : "#252525"} strokeWidth="6" strokeLinecap="round" />)}
+      {(useLanguageDial ? dialLanguageSegments : languageSegments).map((path, index) => <path key={path} d={path} fill="none" stroke={index === languageIndex ? "#E2637E" : "#252525"} strokeWidth={useLanguageDial ? dialProgressStroke : 6} strokeLinecap="round" />)}
       <text x="216" y="91" fontSize="17" fill="#999">{languageIndex + 1}/{useLanguageDial ? options.length : FACTORY_SETUP.slots}</text>
       {(useLanguageDial ? dialLanguageRows : languageRows).map(({ offset, y, opacity }) => {
         const row = options[languageIndex + offset];

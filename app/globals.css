@@ -165,7 +165,6 @@ button { font:inherit; }
 .power-off-screen>span { bottom:10.3%; color:#999; font-size:4.398cqw; font-weight:500; line-height:1.3; }
 .device-controls { position:absolute; z-index:3; left:53.7%; top:35.5%; width:32%; display:grid; grid-template-columns:repeat(3,1fr); gap:22px 26px; }
 .device-controls[hidden] { display:none; }
-.device-controls.is-language-confirm button:disabled { visibility:hidden; }
 .device-controls.solution-1,.device-controls.solution-2 { top:34%; row-gap:clamp(16px,2.5vw,36px); }
 .device-controls.solution-1 .button-art,.device-controls.solution-2 .button-art { width:min(85%,88px); }
 .device-controls button { position:relative; display:flex; min-width:0; align-items:center; justify-content:center; padding:0; border:0; background:transparent; color:#fff; cursor:pointer; }
@@ -241,7 +240,8 @@ button { font:inherit; }
 .theme-options .selected .theme-preview { border-color:#e2637e; }
 .theme-options span { display:block; margin-top:7%; font-size:clamp(10px,1.1vw,16px); }
 .theme-options .selected span { color:#e2637e; }
-.debug-content { flex-wrap:wrap; width:min(540px,calc(100vw - 40px)); max-height:35vh; overflow:auto; }
+.debug-content { flex-direction:column; width:min(600px,calc(100vw - 40px)); max-height:35vh; overflow:auto; }
+.debug-controls { display:flex; flex:none; justify-content:safe flex-end; gap:inherit; overflow-x:auto; scrollbar-width:thin; }
 .app-simulator { width:100%; text-align:left; border-bottom:1px solid #ddd; padding-bottom:8px; }
 .app-simulator b { display:block; padding:2px 3px 8px; color:#666; font-size:12px; }
 .ambient-control { padding:7px 3px 2px; color:#6b6257; font-size:11px; }
@@ -251,6 +251,7 @@ button { font:inherit; }
 .ambient-scale { display:flex; justify-content:space-between; color:#9b948b; font-size:10px; }
 .simulator-row { display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin:4px 0; font-size:12px; color:#555; }
 .debug-content button:disabled { opacity:.35; cursor:not-allowed; }
+.debug-content .simulate-language-failure:disabled { opacity:1; color:#666; background:#f1f0ed; }
 .debug-content button[aria-pressed="true"] { border-color:#e2637e; color:#b33856; background:#ffedf2; }
 @media(max-width:760px) { .night-key-placeholder { width:clamp(42px,11vw,62px); } .debug-content { max-height:28vh; } }
 .round-screen { container-type:inline-size; }
@@ -263,6 +264,10 @@ button { font:inherit; }
 
 .factory-screen { position:absolute; inset:0; display:block; width:100%; height:100%; background:#000; fill:#fff; pointer-events:none; }
 .factory-screen text { text-anchor:middle; dominant-baseline:central; font-family:"Aeonik Soft Pro","PingFang SC","Microsoft YaHei",sans-serif; }
+.factory-screen text:lang(ja), .factory-dial-hint:lang(ja) text { font-family:"Hiragino Sans","Yu Gothic",sans-serif; }
+.factory-screen text:lang(ko), .factory-dial-hint:lang(ko) text { font-family:"Apple SD Gothic Neo","Malgun Gothic",sans-serif; }
+.factory-dial-hint text { dominant-baseline:auto; }
+@media (prefers-reduced-motion:reduce) { .factory-dial-hint-shine { display:none; } }
 .factory-action-targets { position:absolute; z-index:4; left:20.6%; top:31.25%; width:25.65%; aspect-ratio:1; pointer-events:none; }
 .factory-action-targets button { position:absolute; top:65%; left:28%; width:17.6%; height:17%; border:0; border-radius:50%; padding:0; background:transparent; pointer-events:auto; cursor:pointer; }
 .factory-action-targets button + button { left:56.7%; }

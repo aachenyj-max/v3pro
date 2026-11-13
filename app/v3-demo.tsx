@@ -2,27 +2,21 @@
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { ConfirmHintArtwork, DialHint, DualLevelScreen, SidePauseConfirmation, NightLightScreen, NightLightHoldScreen, NightLightOffScreen, IpArtwork, SuctionStatusText } from "./v3-controls";
-import { DEVICE_LANGUAGES, FACTORY_SETUP, type FactoryResetState, type LanguageSetupState, MENU_ITEMS, MODE_COLORS, MODES, PumpMode, ScreenState, V3_CONFIG, levelForSuctionKpa, maxLevelForMode, suctionKpa } from "./v3-config";
+import { DEVICE_LANGUAGES, DIAL_LANGUAGES, FACTORY_SETUP, type DeviceLanguageId, type FactoryResetState, type LanguageSetupState, MENU_ITEMS, MODE_COLORS, MODES, PumpMode, ScreenState, V3_CONFIG, levelForSuctionKpa, maxLevelForMode, suctionKpa } from "./v3-config";
 
 import { FactoryScreen } from "./v3-factory-screen";
-
-const languageStorageKey = "v3pro.device-language.v1";
-const themeStorageKey = "v3pro.theme.v1";
-const nightLevelStorageKey = "v3pro.night-level.v1";
-const defaultLanguageIndex = DEVICE_LANGUAGES.findIndex(language => language.id === FACTORY_SETUP.defaultLanguage);
 
 type SetupScreen = LanguageSetupState | FactoryResetState | "resetBoot";
 type SharedSetup = {
   screen: SetupScreen | null;
-  languageIndex: number;
+  languageId: DeviceLanguageId;
   progress: number;
-  installResult: "success" | "failure";
   resetVersion: number;
   finishVersion: number;
 };
 const initialSetup: SharedSetup = {
-  screen: null, languageIndex: defaultLanguageIndex, progress: 0,
-  installResult: "success", resetVersion: 0, finishVersion: 0,
+  screen: null, languageId: FACTORY_SETUP.defaultLanguage, progress: 0,
+  resetVersion: 0, finishVersion: 0,
 };
 
 type SuctionSide = "left" | "right";
@@ -45,8 +39,7 @@ const stateLabels: Record<ScreenState | SetupScreen, string> = {
   off: "关机", powerOnPrompt: "开机提示", boot: "启动", home: "主页", menu: "菜单", pumping: "吸奶中", paused: "暂停",
   level: "档位", bothLevel: "双侧档位", sidePauseConfirm: "单侧暂停确认", suctionProgress: "吸力调整进度", nightLight: "夜灯", theme: "皮肤选择", endingPump: "结束中", standby: "待机", finish: "反馈", modeSuccess: "切换成功", poweringOff: "关机中",
   sealChecking: "密封检测", sealPassed: "检测通过", leakCheck: "漏气排查",
-  languageSelect: "语言选择", languageConfirm: "语言确认", languageQr: "扫码安装语言包",
-  languageInstall: "安装语言包", languageSuccess: "设置成功", languageFailure: "设置失败",
+  languageSelect: "语言选择", languageConfirm: "语言确认", languageSuccess: "设置成功", languageFailure: "设置失败",
   resetConfirm: "恢复出厂设置", resetting: "正在恢复出厂设置", resetRestart: "设备即将重启", resetBoot: "设备启动中…",
 };
 const leakPages = [
@@ -535,11 +528,24 @@ function DeviceExperience({ solution, active, onSolutionChange, setup, setSetup,
   onSolutionChange: (solution: 1 | 2) => void;
   setup: SharedSetup;
   setSetup: React.Dispatch<React.SetStateAction<SharedSetup>>;
-  savedLanguage: React.RefObject<string | null>;
+  savedLanguage: React.RefObject<DeviceLanguageId | null>;
   finishLanguage: () => void;
 }) {
-  const factoryState = setup.screen;
-  const languageIndex = setup.languageIndex;
+  const [showLanguageFailurePreview, setShowLanguageFailurePreview] = useState(false);
+  const factoryState = setup.screen ?? (showLanguageFailurePreview ? "languageFailure" : null);
+
+  useEffect(() => {
+    if (!showLanguageFailurePreview) return;
+    if (!active) {
+      setShowLanguageFailurePreview(false);
+      return;
+    }
+    const timer = setTimeout(() => setShowLanguageFailurePreview(false), FACTORY_SETUP.resultDurationMs);
+    return () => clearTimeout(timer);
+  }, [active, showLanguageFailurePreview]);
+  const useLanguageDial = solution === 1;
+  const languageOptions = useLanguageDial ? DIAL_LANGUAGES : DEVICE_LANGUAGES;
+  const selectedLanguage = DEVICE_LANGUAGES.find(language => language.id === setup.languageId)!;
   const [resetHoldActive, setResetHoldActive] = useState(false);
   const [resetConfirmActivity, setResetConfirmActivity] = useState(0);
   const resetHoldTimer = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -580,14 +586,6 @@ function DeviceExperience({ solution, active, onSolutionChange, setup, setSetup,
   const standbyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const clickLock = useRef(false);
   const [theme, setTheme] = useState<"minimal" | "ip">("minimal");
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem(themeStorageKey);
-      if (saved === "minimal" || saved === "ip") setTheme(saved);
-      const savedLevel = Number(localStorage.getItem(nightLevelStorageKey));
-      if (savedLevel >= 1 && savedLevel <= 3) setNightLevel(savedLevel);
-    } catch { /* Storage may be unavailable in private browsing. */ }
-  }, []);
   const [nightOn, setNightOn] = useState(false);
   const [nightLevel, setNightLevel] = useState(2);
   const [ambientLight, setAmbientLight] = useState(35);
@@ -1050,7 +1048,7 @@ function DeviceExperience({ solution, active, onSolutionChange, setup, setSetup,
       setState("home");
       setToast("Stimulation 默认主页");
       if (!savedLanguage.current) {
-        setSetup(current => current.screen ? current : { ...current, screen: "languageSelect", languageIndex: defaultLanguageIndex });
+        setSetup(current => current.screen ? current : { ...current, screen: "languageSelect", languageId: FACTORY_SETUP.defaultLanguage });
       }
     }, V3_CONFIG.bootDurationMs);
     return () => clearTimeout(timer);
@@ -1085,13 +1083,13 @@ function DeviceExperience({ solution, active, onSolutionChange, setup, setSetup,
 
   const navigateLanguage = useCallback((direction: "back" | "continue") => {
     if (direction === "back") setSetup(current => ({ ...current, screen: "languageSelect" }));
-    else if (DEVICE_LANGUAGES[languageIndex].builtIn) finishLanguage();
-    else setSetup(current => ({ ...current, screen: "languageQr" }));
-  }, [finishLanguage, languageIndex, setSetup]);
+    else finishLanguage();
+  }, [finishLanguage, setSetup]);
 
   const handleWheel = useCallback((event: React.WheelEvent) => {
     event.preventDefault();
-    if (nightOffFeedback || (factoryState && factoryState !== "languageSelect")) return;
+    const canReturnToLanguages = useLanguageDial && factoryState === "languageConfirm";
+    if (nightOffFeedback || (factoryState && factoryState !== "languageSelect" && !canReturnToLanguages)) return;
     if (!factoryState && state === "standby") { wake("home"); return; }
     const gestureDelta = Math.abs(event.deltaY) >= Math.abs(event.deltaX) ? event.deltaY : -event.deltaX;
     const levelAdjustmentActive = state === "level" || state === "bothLevel";
@@ -1107,7 +1105,15 @@ function DeviceExperience({ solution, active, onSolutionChange, setup, setSetup,
     wheelAccumulator.current = 0;
     wheelGestureLocked.current = true;
     if (factoryState === "languageSelect") {
-      setSetup(current => ({ ...current, languageIndex: Math.max(0, Math.min(DEVICE_LANGUAGES.length - 1, current.languageIndex + direction)) }));
+      setSetup(current => {
+        const index = languageOptions.findIndex(language => language.id === current.languageId);
+        const next = Math.max(0, Math.min(languageOptions.length - 1, index + direction));
+        return { ...current, languageId: languageOptions[next].id };
+      });
+      return;
+    }
+    if (canReturnToLanguages) {
+      navigateLanguage("back");
       return;
     }
     if (state === "sidePauseConfirm") {
@@ -1134,7 +1140,6 @@ function DeviceExperience({ solution, active, onSolutionChange, setup, setSetup,
       const next = Math.min(3, Math.max(1, (nightAuto ? 1 : nightLevel) + direction));
       setNightAuto(next === 1);
       setNightLevel(next);
-      try { localStorage.setItem(nightLevelStorageKey, String(next)); } catch { /* Keep the selection in memory. */ }
       return;
     }
     if (state === "paused" || state === "home" || state === "pumping") {
@@ -1207,7 +1212,7 @@ function DeviceExperience({ solution, active, onSolutionChange, setup, setSetup,
       }
       if (state === "level" && activeControl === "speed") setSpeedLevel(value => Math.min(V3_CONFIG.maxSpeed, Math.max(1, value + direction)));
     }
-  }, [factoryState, setSetup, activeControl, beginSuctionFeedback, clearSuctionTimers, leftLevel, levelLimit, mode, modeMaxLevel, rightLevel, nightAuto, nightLevel, nightOn, nightOffFeedback, state, wake]);
+  }, [factoryState, languageOptions, navigateLanguage, setSetup, useLanguageDial, activeControl, beginSuctionFeedback, clearSuctionTimers, leftLevel, levelLimit, mode, modeMaxLevel, rightLevel, nightAuto, nightLevel, nightOn, nightOffFeedback, state, wake]);
 
   const handleScreenClick = useCallback(() => {
     if (clickLock.current || nightOffFeedback) return;
@@ -1215,12 +1220,15 @@ function DeviceExperience({ solution, active, onSolutionChange, setup, setSetup,
       setSetup(current => ({ ...current, screen: "languageConfirm" }));
       return;
     }
+    if (useLanguageDial && factoryState === "languageConfirm") {
+      navigateLanguage("continue");
+      return;
+    }
     if (factoryState) return;
     if (state === "off") { setState("powerOnPrompt"); setPowerOnPromptActivity((value) => value + 1); setToast("长按圆屏 2 秒即可开机"); return; }
     if (state === "powerOnPrompt") { setPowerOnPromptActivity((value) => value + 1); setToast("长按圆屏 2 秒即可开机"); return; }
     if (state === "boot") return;
     if (state === "theme") {
-      try { localStorage.setItem(themeStorageKey, theme); } catch { /* Session selection still applies. */ }
       setState("home"); setToast(`已选择 ${theme === "minimal" ? "Minimal" : "IP"} 皮肤`); return;
     }
     if (state === "standby") { wake(); return; }
@@ -1246,7 +1254,7 @@ function DeviceExperience({ solution, active, onSolutionChange, setup, setSetup,
     }
     if (state === "finish" || state === "modeSuccess" || state === "endingPump" || state === "poweringOff") return;
     togglePump();
-  }, [factoryState, setSetup, commitSidePause, confirmLevel, handlePauseButton, levelLimit, menuIndex, mode, nightOffFeedback, pumpStatus, showTemporary, state, theme, togglePump, wake]);
+  }, [factoryState, navigateLanguage, setSetup, useLanguageDial, commitSidePause, confirmLevel, handlePauseButton, levelLimit, menuIndex, mode, nightOffFeedback, pumpStatus, showTemporary, state, theme, togglePump, wake]);
 
   const clearTransition = useCallback(() => {
     if (transitionTimer.current) clearInterval(transitionTimer.current);
@@ -1317,9 +1325,6 @@ function DeviceExperience({ solution, active, onSolutionChange, setup, setSetup,
         }
         stopResetHold();
         savedLanguage.current = null;
-        try {
-          for (const key of [languageStorageKey, themeStorageKey, nightLevelStorageKey]) localStorage.removeItem(key);
-        } catch { /* Reset the running demo even when storage is unavailable. */ }
         setSetup(current => ({ ...current, screen: "resetting", resetVersion: current.resetVersion + 1 }));
       }, 40);
       return;
@@ -1367,8 +1372,8 @@ function DeviceExperience({ solution, active, onSolutionChange, setup, setSetup,
       if (event.target instanceof HTMLElement && event.target.closest("input,select,textarea")) return;
       if (factoryState) {
         if (factoryState === "resetConfirm" && ["q", "w", "e", "a", "d"].includes(key)) cancelFactoryReset();
-        if (factoryState === "languageConfirm" && (key === "a" || key === "d")) navigateLanguage(key === "a" ? "back" : "continue");
-        if (factoryState === "languageSelect" && key === "s") handleScreenClick();
+        if (!useLanguageDial && factoryState === "languageConfirm" && (key === "a" || key === "d")) navigateLanguage(key === "a" ? "back" : "continue");
+        if (key === "s" && (factoryState === "languageSelect" || (useLanguageDial && factoryState === "languageConfirm"))) handleScreenClick();
         return;
       }
       if (key === "q") showTemporary("stimulation");
@@ -1380,7 +1385,7 @@ function DeviceExperience({ solution, active, onSolutionChange, setup, setSetup,
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [active, cancelFactoryReset, factoryState, handlePauseButton, handleScreenClick, navigateLanguage, openCombinedLevel, openLevel, showTemporary, solution, toggleNight]);
+  }, [active, cancelFactoryReset, factoryState, handlePauseButton, handleScreenClick, navigateLanguage, openCombinedLevel, openLevel, showTemporary, solution, toggleNight, useLanguageDial]);
 
   const screenImage = useMemo(() => {
     if (state === "home" || state === "pumping" || state === "paused" || state === "level" || state === "bothLevel" || state === "sidePauseConfirm" || state === "suctionProgress" || state === "endingPump" || state === "poweringOff" || state === "sealChecking" || state === "sealPassed" || state === "leakCheck") return undefined;
@@ -1449,9 +1454,21 @@ function DeviceExperience({ solution, active, onSolutionChange, setup, setSetup,
   }, [active, setup.finishVersion]);
 
   const reset = () => {
+    setShowLanguageFailurePreview(false);
     stopResetHold();
     resetDevice();
     setSetup(current => ({ ...current, screen: null, progress: 0 }));
+  };
+  const canSimulateLanguageFailure = factoryState === "languageConfirm" ||
+    (!factoryState && (state === "home" || state === "off" || state === "powerOnPrompt"));
+  const simulateLanguageFailure = () => {
+    if (!canSimulateLanguageFailure) return;
+    stopHold();
+    if (factoryState === "languageConfirm") {
+      setSetup(current => current.screen === "languageConfirm" ? { ...current, screen: "languageFailure" } : current);
+    } else {
+      setShowLanguageFailurePreview(true);
+    }
   };
   const canTriggerFactoryReset = !factoryState && isPowered && !nightOffFeedback && state !== "boot" && state !== "endingPump";
   const openFactoryReset = () => {
@@ -1459,17 +1476,12 @@ function DeviceExperience({ solution, active, onSolutionChange, setup, setSetup,
     stopHold();
     setSetup(current => ({ ...current, screen: "resetConfirm", progress: 0 }));
   };
-  const simulateLanguageInstall = (result: "success" | "failure") => {
-    setBluetoothConnected(true);
-    setSetup(current => current.screen === "languageQr" ? { ...current, screen: "languageInstall", installResult: result, progress: 0 } : current);
-  };
   const endDialHold = factoryState === "resetConfirm" ? stopResetHold : stopHold;
   const visibleState = factoryState ?? state;
-  const hasPhysicalLanguageActions = solution === 1 && factoryState === "languageConfirm";
-  const controlsUnpowered = !hasPhysicalLanguageActions && ((!isPowered && state !== "poweringOff") || state === "boot");
+  const controlsUnpowered = (!isPowered && state !== "poweringOff") || state === "boot";
   const visiblePowered = factoryState ? factoryState !== "resetRestart" : isPowered;
   const visibleToast = factoryState === "languageSelect" ? "滚轮选择语言，点按圆盘确认" :
-    factoryState === "languageConfirm" ? (solution === 1 ? "左键返回，右键继续" : "点按屏幕上的返回或继续") :
+    factoryState === "languageConfirm" ? (solution === 1 ? "滚轮返回语言列表，点按圆盘确认" : "点按屏幕上的返回或继续") :
     factoryState === "resetConfirm" ? "长按圆盘 3 秒确认恢复出厂设置" :
     factoryState ? stateLabels[factoryState] : toast;
 
@@ -1499,12 +1511,12 @@ function DeviceExperience({ solution, active, onSolutionChange, setup, setSetup,
           <div ref={screenRef} onWheel={handleWheel} className={`round-screen state-${visibleState}${!factoryState && state === "leakCheck" ? " leak-circle-control" : ""}`} style={{ "--mode-color": modeColor } as React.CSSProperties} onClick={handleScreenClick}
             onPointerDown={beginHold}
             onPointerUp={endDialHold} onPointerCancel={endDialHold} onPointerLeave={endDialHold} onContextMenu={(e) => e.preventDefault()}
-            role="button" tabIndex={0} onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleScreenClick(); } }} aria-label={factoryState === "languageSelect" ? `圆盘：${DEVICE_LANGUAGES[languageIndex].label}，滚轮切换语言，点按确认` :
+            role="button" tabIndex={0} onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleScreenClick(); } }} aria-label={factoryState === "languageSelect" ? `圆盘：${selectedLanguage.label}，滚轮切换语言，点按确认` :
               factoryState === "resetConfirm" ? "圆盘：长按三秒确认恢复出厂设置" :
               factoryState ? `圆盘：${stateLabels[factoryState]}` : "圆盘：点按开始暂停或确认，长按两秒关机，滚轮调节"}>
             {factoryState === "resetBoot" && <img src={fixedImages.boot} alt="" draggable={false} />}
-            {factoryState && factoryState !== "resetBoot" && <FactoryScreen state={factoryState} languageIndex={languageIndex} progress={setup.progress} resetProgress={setup.progress} />}
-            {(factoryState === "languageInstall" || (factoryState === "resetConfirm" && setup.progress > 0)) &&
+            {factoryState && factoryState !== "resetBoot" && <FactoryScreen state={factoryState} languageId={setup.languageId} useLanguageDial={useLanguageDial} resetProgress={setup.progress} />}
+            {factoryState === "resetConfirm" && setup.progress > 0 &&
               <ArcProgress percent={setup.progress} color="#F3F4FF" />}
             {!factoryState && <>
             {screenImage && <img src={screenImage} alt="" draggable={false} />}
@@ -1561,16 +1573,16 @@ function DeviceExperience({ solution, active, onSolutionChange, setup, setSetup,
             {(state === "powerOnPrompt" || state === "nightLight") && holdProgress > 0 && <ArcProgress percent={holdProgress} color="#F3F4FF" />}
             </>}
           </div>
-          {factoryState === "languageConfirm" && <div className="factory-action-targets">
+          {!useLanguageDial && factoryState === "languageConfirm" && <div className="factory-action-targets">
             <button aria-label="返回" onClick={() => navigateLanguage("back")} />
             <button aria-label="继续" onClick={() => navigateLanguage("continue")} />
           </div>}
 
-          <div className={`device-controls solution-${solution}${controlsUnpowered ? " is-unpowered" : ""}${state === "theme" || state === "poweringOff" || state === "endingPump" || (nightOffFeedback && isPowered) || (levelLimit && isPowered) ? " is-controls-lit" : ""}${state === "leakCheck" ? " is-leak-check" : ""}${hasPhysicalLanguageActions ? " is-language-confirm" : ""}`}
-            hidden={solution === 1 && factoryState === "languageSelect"} aria-label="设备实体按键">
+          <div className={`device-controls solution-${solution}${controlsUnpowered ? " is-unpowered" : ""}${state === "theme" || state === "poweringOff" || state === "endingPump" || (nightOffFeedback && isPowered) || (levelLimit && isPowered) ? " is-controls-lit" : ""}${state === "leakCheck" ? " is-leak-check" : ""}`}
+            hidden={useLanguageDial && (factoryState === "languageSelect" || factoryState === "languageConfirm" || factoryState === "languageSuccess")} aria-label="设备实体按键">
             {MODES.map((item) => <button key={item.id} onClick={() => factoryState === "resetConfirm" ? cancelFactoryReset() : showTemporary(item.id)} disabled={deviceControlsLocked && factoryState !== "resetConfirm"} aria-label={item.id === "stimulation" ? "Stimulation" : item.label}><img className="button-art" src={item.id === "stimulation" ? "/assets/v3-pro/controls/stimulation-key.svg" : "/assets/v5/device-buttons/Expression.svg"} alt={item.id === "stimulation" ? "Stimulation" : item.label} /></button>)}
             <button onClick={() => factoryState === "resetConfirm" ? cancelFactoryReset() : openLevel("speed")} disabled={deviceControlsLocked && factoryState !== "resetConfirm"} aria-label="Speed"><img className="button-art" src="/assets/v5/device-buttons/Speed.svg" alt="Speed" /></button>
-            {solution === 1 ? <button onClick={() => factoryState === "languageConfirm" ? navigateLanguage("back") : factoryState === "resetConfirm" ? cancelFactoryReset() : openLevel("left")} disabled={deviceControlsLocked && factoryState !== "languageConfirm" && factoryState !== "resetConfirm"} aria-label="Left"><img className="button-art" src="/assets/v5/device-buttons/Left.svg" alt="Left" /></button>
+            {solution === 1 ? <button onClick={() => factoryState === "resetConfirm" ? cancelFactoryReset() : openLevel("left")} disabled={deviceControlsLocked && factoryState !== "resetConfirm"} aria-label="Left"><img className="button-art" src="/assets/v5/device-buttons/Left.svg" alt="Left" /></button>
               : <button onClick={factoryState === "resetConfirm" ? cancelFactoryReset : openCombinedLevel} disabled={deviceControlsLocked && factoryState !== "resetConfirm"} aria-label="Level：切换左侧和右侧档位"><img className="button-art" src="/assets/v3-pro/controls/combined-level-key.svg" alt="Level" /></button>}
             {solution === 2 && <button onClick={() => { if (factoryState === "resetConfirm") cancelFactoryReset(); else if (!clickLock.current) handlePauseButton(); }}
               onPointerDown={factoryState ? undefined : beginHold} onPointerUp={factoryState ? undefined : stopHold} onPointerCancel={factoryState ? undefined : stopHold} onPointerLeave={factoryState ? undefined : stopHold}
@@ -1583,7 +1595,7 @@ function DeviceExperience({ solution, active, onSolutionChange, setup, setSetup,
               disabled={(!!factoryState && factoryState !== "resetConfirm") || nightOffFeedback || ["boot", "poweringOff", "endingPump", "theme"].includes(state)} aria-label="夜灯：短按开启，长按两秒关闭">
               {V3_CONFIG.nightKeyAsset ? <img className="button-art" src={V3_CONFIG.nightKeyAsset} alt="夜灯" /> : <span className={`night-key-placeholder${nightOn ? " is-on" : ""}`}><span>夜灯</span><small>Light</small></span>}
             </button>
-            {solution === 1 && <button onClick={() => factoryState === "languageConfirm" ? navigateLanguage("continue") : factoryState === "resetConfirm" ? cancelFactoryReset() : openLevel("right")} disabled={deviceControlsLocked && factoryState !== "languageConfirm" && factoryState !== "resetConfirm"} aria-label="Right"><img className="button-art" src="/assets/v5/device-buttons/Right.svg" alt="Right" /></button>}
+            {solution === 1 && <button onClick={() => factoryState === "resetConfirm" ? cancelFactoryReset() : openLevel("right")} disabled={deviceControlsLocked && factoryState !== "resetConfirm"} aria-label="Right"><img className="button-art" src="/assets/v5/device-buttons/Right.svg" alt="Right" /></button>}
           </div>
         </div>
         <div className="status-toast"><span className={visiblePowered ? "dot on" : "dot"} />{visibleToast}</div>
@@ -1598,17 +1610,17 @@ function DeviceExperience({ solution, active, onSolutionChange, setup, setSetup,
         <button className="debug-toggle" onClick={() => setShowDebug(!showDebug)}>{showDebug ? "收起演示状态" : "演示状态"}</button>
         {showDebug && <div className="debug-content">
           <div className="app-simulator"><b>设备事件模拟</b><div className="simulator-row">{MENU_ITEMS.filter(item => item.mode !== "stimulation" && item.mode !== "expression").map(item => <button disabled={deviceControlsLocked} key={item.mode} onClick={() => { setBluetoothConnected(true); showTemporary(item.mode); }}>{item.label}</button>)}</div>
-            {factoryState === "languageQr" && <div className="simulator-row">
-              <button onClick={() => simulateLanguageInstall("success")}>模拟安装成功</button>
-              <button onClick={() => simulateLanguageInstall("failure")}>模拟安装失败</button>
-            </div>}
             {nightOn && nightAuto && <div className="ambient-control"><label htmlFor="ambient-light">外部光线模拟 <span>{ambientLight < 34 ? "昏暗" : ambientLight < 67 ? "适中" : "明亮"}</span></label><input id="ambient-light" type="range" min="0" max="100" value={ambientLight} onChange={event => setAmbientLight(Number(event.target.value))} aria-label="外部光线亮度" /><div className="ambient-scale"><span>暗</span><span>亮</span></div></div>}
           </div>
-          <button disabled={pumpStatus !== "idle" || deviceControlsLocked} onClick={() => setState("theme")}>皮肤选择</button>
-          <button onClick={reset}>重置演示</button>
-          <button onClick={openFactoryReset} disabled={!canTriggerFactoryReset}>恢复出厂设置</button>
-          <button disabled={!!factoryState} onClick={startDemoSelfCheck}>启动自检</button>
-          <button disabled={!!factoryState} onClick={() => { setBluetoothConnected((value) => !value); setToast(bluetoothConnected ? "蓝牙已断开" : "蓝牙已连接"); }}>{bluetoothConnected ? "断开蓝牙" : "连接蓝牙"}</button>
+          <div className="debug-controls">
+            {solution === 1 && <button className="simulate-language-failure" disabled={!canSimulateLanguageFailure}
+              onClick={simulateLanguageFailure}>模拟设置失败</button>}
+            {solution === 2 && <button disabled={pumpStatus !== "idle" || deviceControlsLocked} onClick={() => setState("theme")}>皮肤选择</button>}
+            <button onClick={reset}>重置演示</button>
+            <button onClick={openFactoryReset} disabled={!canTriggerFactoryReset}>恢复出厂设置</button>
+            <button disabled={!!factoryState} onClick={startDemoSelfCheck}>启动自检</button>
+            <button disabled={!!factoryState} onClick={() => { setBluetoothConnected((value) => !value); setToast(bluetoothConnected ? "蓝牙已断开" : "蓝牙已连接"); }}>{bluetoothConnected ? "断开蓝牙" : "连接蓝牙"}</button>
+          </div>
         </div>}
       </aside>
     </main>
@@ -1618,35 +1630,18 @@ function DeviceExperience({ solution, active, onSolutionChange, setup, setSetup,
 export default function DeviceDemo() {
   const [solution, setSolution] = useState<1 | 2>(1);
   const [setup, setSetup] = useState(initialSetup);
-  const savedLanguage = useRef<string | null>(null);
-  useEffect(() => {
-    try { savedLanguage.current = localStorage.getItem(languageStorageKey); } catch { /* Keep session state. */ }
-  }, []);
+  const savedLanguage = useRef<DeviceLanguageId | null>(null);
 
   const finishLanguage = useCallback(() => {
-    const id = DEVICE_LANGUAGES[setup.languageIndex].id;
-    savedLanguage.current = id;
-    try { localStorage.setItem(languageStorageKey, id); } catch { /* Keep session state. */ }
+    savedLanguage.current = setup.languageId;
     setSetup(current => ({ ...current, screen: "languageSuccess" }));
-  }, [setup.languageIndex]);
+  }, [setup.languageId]);
 
-  const { screen, installResult } = setup;
+  const { screen } = setup;
   useEffect(() => {
-    if (screen === "languageInstall") {
-      const startedAt = Date.now();
-      const ticker = setInterval(() => {
-        const progress = Math.min(100, Math.floor((Date.now() - startedAt) * 100 / FACTORY_SETUP.installDurationMs));
-        setSetup(current => current.screen === screen ? { ...current, progress } : current);
-      }, 50);
-      const timer = setTimeout(() => {
-        if (installResult === "success") finishLanguage();
-        else setSetup(current => ({ ...current, screen: "languageFailure" }));
-      }, FACTORY_SETUP.installDurationMs);
-      return () => { clearInterval(ticker); clearTimeout(timer); };
-    }
     const transitions = {
       languageSuccess: [null, FACTORY_SETUP.resultDurationMs],
-      languageFailure: ["languageQr", FACTORY_SETUP.resultDurationMs],
+      languageFailure: ["languageSelect", FACTORY_SETUP.resultDurationMs],
       resetting: ["resetRestart", FACTORY_SETUP.resetDurationMs],
       resetRestart: ["resetBoot", FACTORY_SETUP.restartDelayMs],
       resetBoot: ["languageSelect", V3_CONFIG.bootDurationMs],
@@ -1655,15 +1650,28 @@ export default function DeviceDemo() {
     const [next, duration] = transitions[screen as keyof typeof transitions];
     const timer = setTimeout(() => setSetup(current => current.screen === screen ? {
       ...current, screen: next,
-      languageIndex: screen === "resetBoot" ? defaultLanguageIndex : current.languageIndex,
+      languageId: screen === "resetBoot" ? FACTORY_SETUP.defaultLanguage : current.languageId,
       finishVersion: current.finishVersion + (screen === "languageSuccess" ? 1 : 0),
     } : current), duration);
     return () => clearTimeout(timer);
-  }, [finishLanguage, installResult, screen]);
+  }, [screen]);
+
+  const changeSolution = (next: 1 | 2) => {
+    if (next === 2) {
+      setSetup(current => current.screen === "languageFailure" ? { ...current, screen: "languageSelect" } : current);
+    } else {
+      setSetup(current => {
+        const isChoosingLanguage = current.screen === "languageSelect" || current.screen === "languageConfirm";
+        if (!isChoosingLanguage || DIAL_LANGUAGES.some(language => language.id === current.languageId)) return current;
+        return { ...current, screen: "languageSelect", languageId: FACTORY_SETUP.defaultLanguage };
+      });
+    }
+    setSolution(next);
+  };
 
   const setupProps = { setup, setSetup, savedLanguage, finishLanguage };
   return <>
-    <DeviceExperience solution={1} active={solution === 1} onSolutionChange={setSolution} {...setupProps} />
-    <DeviceExperience solution={2} active={solution === 2} onSolutionChange={setSolution} {...setupProps} />
+    <DeviceExperience solution={1} active={solution === 1} onSolutionChange={changeSolution} {...setupProps} />
+    <DeviceExperience solution={2} active={solution === 2} onSolutionChange={changeSolution} {...setupProps} />
   </>;
 }

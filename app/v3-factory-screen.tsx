@@ -1,4 +1,5 @@
-import { DEVICE_LANGUAGES, FACTORY_SETUP, type FactoryResetState, type LanguageSetupState } from "./v3-config";
+import { useId } from "react";
+import { DEVICE_LANGUAGES, DIAL_LANGUAGES, FACTORY_SETUP, LANGUAGE_DIAL_HINTS, type DeviceLanguageId, type FactoryResetState, type LanguageSetupState } from "./v3-config";
 
 const assets = "/assets/v3-pro/factory/";
 const languageRows = [
@@ -21,52 +22,97 @@ function segmentPath(index: number) {
 
 const languageSegments = Array.from({ length: FACTORY_SETUP.slots }, (_, index) => segmentPath(index));
 
-export function FactoryScreen({ state, languageIndex, progress, resetProgress }: {
+const dialLanguageRows = [
+  { offset: -2, y: 123, opacity: 0.4 },
+  { offset: -1, y: 154, opacity: 1 },
+  { offset: 0, y: 190, opacity: 1 },
+  { offset: 1, y: 226, opacity: 1 },
+  { offset: 2, y: 257, opacity: 1 },
+  { offset: 3, y: 288, opacity: 0.4 },
+  { offset: 4, y: 319, opacity: 0.4 },
+];
+
+function dialPoint(radius: number, degrees: number) {
+  const angle = degrees * Math.PI / 180;
+  return `${216 + radius * Math.cos(angle)} ${216 + radius * Math.sin(angle)}`;
+}
+
+// The longest selection hint is approximately 394 units at 19 px.
+// A 152° opening at the text radius gives it 435 units, including end clearance.
+const dialArcStart = 166;
+const dialArcSpan = 208;
+const segmentGap = 3.2;
+const dialLanguageSegments = DIAL_LANGUAGES.map((_, index) => {
+  const span = (dialArcSpan - segmentGap * (DIAL_LANGUAGES.length - 1)) / DIAL_LANGUAGES.length;
+  const start = dialArcStart + index * (span + segmentGap);
+  return `M ${dialPoint(173, start)} A 173 173 0 0 1 ${dialPoint(173, start + span)}`;
+});
+const hintCurve = `M ${dialPoint(164, 166)} A 164 164 0 0 0 ${dialPoint(164, 14)}`;
+
+function LanguageDialHint({ text, languageId }: { text: string; languageId: DeviceLanguageId }) {
+  const id = useId();
+  const pathId = `${id}-path`;
+  const shineId = `${id}-shine`;
+  return <g lang={languageId} className="factory-dial-hint" fontSize="19" fontWeight="500">
+    <defs>
+      <path id={pathId} d={hintCurve} />
+      <linearGradient id={shineId} gradientUnits="userSpaceOnUse" x1="146" x2="286" y1="0" y2="0">
+        <stop stopColor="#fff" stopOpacity="0" />
+        <stop offset=".5" stopColor="#fff" />
+        <stop offset="1" stopColor="#fff" stopOpacity="0" />
+        <animateTransform attributeName="gradientTransform" type="translate"
+          values="-230 0;230 0;230 0" keyTimes="0;.7;1" dur="2s" repeatCount="indefinite" />
+      </linearGradient>
+    </defs>
+    <text fill="#999"><textPath href={`#${pathId}`} startOffset="50%">{text}</textPath></text>
+    <text className="factory-dial-hint-shine" fill={`url(#${shineId})`}>
+      <textPath href={`#${pathId}`} startOffset="50%">{text}</textPath>
+    </text>
+  </g>;
+}
+
+export function FactoryScreen({ state, languageId, useLanguageDial, resetProgress }: {
   state: LanguageSetupState | FactoryResetState;
-  languageIndex: number;
-  progress: number;
+  languageId: DeviceLanguageId;
+  useLanguageDial: boolean;
   resetProgress: number;
 }) {
-  const language = DEVICE_LANGUAGES[languageIndex];
-  const success = state === "languageSuccess";
+  const language = DEVICE_LANGUAGES.find(item => item.id === languageId)!;
+  const options = useLanguageDial ? DIAL_LANGUAGES : DEVICE_LANGUAGES;
+  const languageIndex = options.findIndex(item => item.id === languageId);
+  const hint = LANGUAGE_DIAL_HINTS[languageId];
   return <svg className="factory-screen" viewBox="0 0 432 432" aria-hidden="true">
     {state !== "resetRestart" && <circle cx="216" cy="216" r="175.5" fill="none" stroke="#171717" strokeDasharray="3 4" />}
     {state === "languageSelect" && <>
-      {languageSegments.map((path, index) => <path key={path} d={path} fill="none" stroke={index === languageIndex ? "#E2637E" : "#252525"} strokeWidth="6" strokeLinecap="round" />)}
-      <text x="216" y="91" fontSize="17" fill="#999">{languageIndex + 1}/{FACTORY_SETUP.slots}</text>
-      {languageRows.map(({ offset, y, opacity }) => {
-        const row = DEVICE_LANGUAGES[languageIndex + offset];
-        return row && <text key={row.id} x="216" y={y} opacity={opacity}
+      {(useLanguageDial ? dialLanguageSegments : languageSegments).map((path, index) => <path key={path} d={path} fill="none" stroke={index === languageIndex ? "#E2637E" : "#252525"} strokeWidth="6" strokeLinecap="round" />)}
+      <text x="216" y="91" fontSize="17" fill="#999">{languageIndex + 1}/{useLanguageDial ? options.length : FACTORY_SETUP.slots}</text>
+      {(useLanguageDial ? dialLanguageRows : languageRows).map(({ offset, y, opacity }) => {
+        const row = options[languageIndex + offset];
+        return row && <text key={row.id} lang={row.id} x="216" y={y} opacity={opacity}
           fill={offset === 0 ? "#fff" : "#999"} fontSize={offset === 0 ? 26 : 17} fontWeight={offset === 0 ? 500 : 400}>{row.label}</text>;
       })}
-      <image href={assets + "tap.svg"} x="201.81" y="374" width="28.38" height="36.98" />
+      {useLanguageDial && hint ? <LanguageDialHint text={hint.select} languageId={languageId} /> :
+        <image href={assets + "tap.svg"} x="201.81" y="374" width="28.38" height="36.98" />}
     </>}
     {state === "languageConfirm" && <>
       <image href={assets + "globe-background.svg"} x="174" y="54" width="84" height="84" />
       <image href={assets + "globe.svg"} x="195" y="75" width="42" height="42" />
-      <text x="216" y="221" fontSize="26" fontWeight="500">{language.label}</text>
-      <image href={assets + "back.svg"} x="121" y="285" width="74" height="90" />
-      <image href={assets + "continue.svg"} x="245" y="285" width="74" height="90" />
+      <text lang={languageId} x="216" y={useLanguageDial ? 190 : 221} fontSize="26" fontWeight="500">{language.label}</text>
+      {useLanguageDial && hint ? <LanguageDialHint text={hint.confirm} languageId={languageId} /> : <>
+        <image href={assets + "back.svg"} x="121" y="285" width="74" height="90" />
+        <image href={assets + "continue.svg"} x="245" y="285" width="74" height="90" />
+      </>}
     </>}
-    {state === "languageQr" && <>
-      <image href={assets + "qr.svg"} x="156" y="116" width="120" height="120" />
-      <text x="216" y="271" fontSize="22" fontWeight="500">扫码下载并连接 App</text>
-      <text x="216" y="300" fontSize="22" fontWeight="500">加载安装语言包</text>
-    </>}
-    {state === "languageInstall" && <>
-      <image href={assets + "install.svg"} x="174" y="126" width="84" height="84" />
-      <text x="216" y="248" fontSize="26" fontWeight="500">语言设置中</text>
-      <text x="216" y="290" fontSize="26" fontWeight="500">{progress}%</text>
-      <text x="216" y="347" fontSize="19" fill="#999">{(progress / 100 * FACTORY_SETUP.packageSizeMb).toFixed(1)}MB / {FACTORY_SETUP.packageSizeMb}MB</text>
-    </>}
-    {(success || state === "languageFailure") && <>
-      {success ? <>
-        <circle cx="216" cy="185" r="42" fill="#003525" />
-        <image href={assets + "success.svg"} x="188" y="157" width="56" height="56" />
-      </> : <image href={assets + "failure.svg"} x="174" y="143" width="84" height="84" />}
+    {state === "languageSuccess" && <>
+      <circle cx="216" cy="185" r="42" fill="#003525" />
+      <image href={assets + "success.svg"} x="188" y="157" width="56" height="56" />
       <text x="216" y="268" fontSize="33" fontWeight="500">
-        {language.builtIn ? (success ? "Setting completed" : "Setting failed") : (success ? "设置成功" : "设置失败")}
+        {languageId === "en" ? "Setting completed" : "设置成功"}
       </text>
+    </>}
+    {state === "languageFailure" && <>
+      <image href={assets + "failure.svg"} x="174" y="143" width="84" height="84" />
+      <text x="216" y="268" fontSize="33" fontWeight="500">Setting failed</text>
     </>}
     {state === "resetConfirm" && <>
       <ellipse cx="216" cy="168" rx="42.5" ry="42" fill="#2f303a" />

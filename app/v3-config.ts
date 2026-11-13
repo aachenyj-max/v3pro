@@ -21,33 +21,45 @@ export const V3_CONFIG = {
 };
 
 export type PumpMode = "stimulation" | "expression" | "powerPumping" | "milkBoost" | "cozyFlow" | "customized";
-export type LanguageSetupState = "languageSelect" | "languageConfirm" | "languageQr" | "languageInstall" | "languageSuccess" | "languageFailure";
+export type LanguageSetupState = "languageSelect" | "languageConfirm" | "languageSuccess" | "languageFailure";
 export type FactoryResetState = "resetConfirm" | "resetting" | "resetRestart";
 
 export const FACTORY_SETUP = {
   slots: 14,
-  defaultLanguage: "en",
+  defaultLanguage: "en" as const,
   resetHoldMs: 3000,
   resetConfirmTimeoutMs: 5000,
   resetDurationMs: 1500,
   restartDelayMs: 600,
-  installDurationMs: 3000,
   resultDurationMs: 2000,
-  packageSizeMb: 150,
 };
 
 export const DEVICE_LANGUAGES = [
-  { id: "fr", label: "Français", builtIn: false },
-  { id: "en", label: "English", builtIn: true },
-  { id: "zh-CN", label: "简体中文", builtIn: false },
-  { id: "es", label: "Español", builtIn: false },
-  { id: "de", label: "Deutsch", builtIn: false },
-  { id: "ru", label: "Русский", builtIn: false },
-  { id: "ja", label: "日本語", builtIn: false },
-  { id: "it", label: "Italiano", builtIn: false },
-  { id: "ko", label: "한국어", builtIn: false },
-  { id: "zh-TW", label: "繁體中文", builtIn: false },
-];
+  { id: "fr", label: "Français" },
+  { id: "en", label: "English" },
+  { id: "zh-CN", label: "简体中文" },
+  { id: "es", label: "Español" },
+  { id: "de", label: "Deutsch" },
+  { id: "ru", label: "Русский" },
+  { id: "ja", label: "日本語" },
+  { id: "it", label: "Italiano" },
+  { id: "ko", label: "한국어" },
+  { id: "zh-TW", label: "繁體中文" },
+] as const;
+
+export type DeviceLanguageId = (typeof DEVICE_LANGUAGES)[number]["id"];
+
+export const LANGUAGE_DIAL_HINTS: Partial<Record<DeviceLanguageId, { select: string; confirm: string }>> = {
+  fr: { select: "Tournez pour choisir, appuyez pour valider", confirm: "Tournez pour revenir, appuyez pour valider" },
+  en: { select: "Turn to switch, press to confirm", confirm: "Turn to Return, Press to Confirm" },
+  "zh-CN": { select: "旋转切换，按下确认", confirm: "旋转返回，按下确认" },
+  es: { select: "Gira para elegir, pulsa para confirmar", confirm: "Gira para volver, pulsa para confirmar" },
+  de: { select: "Drehen zum Wählen, drücken zum Bestätigen", confirm: "Drehen für Zurück, drücken zum Bestätigen" },
+  ja: { select: "回して切り替え、押して確定", confirm: "回して戻る、押して確定" },
+  ko: { select: "돌려서 선택, 눌러서 확인", confirm: "돌려서 돌아가기, 눌러서 확인" },
+};
+
+export const DIAL_LANGUAGES = DEVICE_LANGUAGES.filter(language => LANGUAGE_DIAL_HINTS[language.id]);
 
 export type ScreenState = "bothLevel" | "sidePauseConfirm" | "suctionProgress" | "nightLight" | "theme" | "off" | "powerOnPrompt" | "boot" | "home" | "menu" | "pumping" | "paused" | "level" | "endingPump" | "finish" | "modeSuccess" | "poweringOff" | "standby" | "sealChecking" | "sealPassed" | "leakCheck";
 

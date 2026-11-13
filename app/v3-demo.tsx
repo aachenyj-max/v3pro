@@ -2,7 +2,28 @@
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { ConfirmHintArtwork, DialHint, DualLevelScreen, SidePauseConfirmation, NightLightScreen, NightLightHoldScreen, NightLightOffScreen, IpArtwork, SuctionStatusText } from "./v3-controls";
-import { MENU_ITEMS, MODE_COLORS, MODES, PumpMode, ScreenState, V3_CONFIG, levelForSuctionKpa, maxLevelForMode, suctionKpa } from "./v3-config";
+import { DEVICE_LANGUAGES, FACTORY_SETUP, type FactoryResetState, type LanguageSetupState, MENU_ITEMS, MODE_COLORS, MODES, PumpMode, ScreenState, V3_CONFIG, levelForSuctionKpa, maxLevelForMode, suctionKpa } from "./v3-config";
+
+import { FactoryScreen } from "./v3-factory-screen";
+
+const languageStorageKey = "v3pro.device-language.v1";
+const themeStorageKey = "v3pro.theme.v1";
+const nightLevelStorageKey = "v3pro.night-level.v1";
+const defaultLanguageIndex = DEVICE_LANGUAGES.findIndex(language => language.id === FACTORY_SETUP.defaultLanguage);
+
+type SetupScreen = LanguageSetupState | FactoryResetState | "resetBoot";
+type SharedSetup = {
+  screen: SetupScreen | null;
+  languageIndex: number;
+  progress: number;
+  installResult: "success" | "failure";
+  resetVersion: number;
+  finishVersion: number;
+};
+const initialSetup: SharedSetup = {
+  screen: null, languageIndex: defaultLanguageIndex, progress: 0,
+  installResult: "success", resetVersion: 0, finishVersion: 0,
+};
 
 type SuctionSide = "left" | "right";
 type SuctionFeedback = {
@@ -20,10 +41,13 @@ const fixedImages: Partial<Record<ScreenState, string>> = {
   finish: "/assets/v5/feedback/吸乳完成页.svg",
   modeSuccess: "/assets/v5/feedback/成功页.svg",
 };
-const stateLabels: Record<ScreenState, string> = {
+const stateLabels: Record<ScreenState | SetupScreen, string> = {
   off: "关机", powerOnPrompt: "开机提示", boot: "启动", home: "主页", menu: "菜单", pumping: "吸奶中", paused: "暂停",
   level: "档位", bothLevel: "双侧档位", sidePauseConfirm: "单侧暂停确认", suctionProgress: "吸力调整进度", nightLight: "夜灯", theme: "皮肤选择", endingPump: "结束中", standby: "待机", finish: "反馈", modeSuccess: "切换成功", poweringOff: "关机中",
   sealChecking: "密封检测", sealPassed: "检测通过", leakCheck: "漏气排查",
+  languageSelect: "语言选择", languageConfirm: "语言确认", languageQr: "扫码安装语言包",
+  languageInstall: "安装语言包", languageSuccess: "设置成功", languageFailure: "设置失败",
+  resetConfirm: "恢复出厂设置", resetting: "正在恢复出厂设置", resetRestart: "设备即将重启", resetBoot: "设备启动中…",
 };
 const leakPages = [
   "/assets/v3-pro/leak/step-1.svg",
@@ -505,7 +529,22 @@ function defaultSuctionLevels(): Record<PumpMode, SuctionLevels> {
   };
 }
 
-function DeviceExperience({ solution, active, onSolutionChange }: { solution: 1 | 2; active: boolean; onSolutionChange: (solution: 1 | 2) => void }) {
+function DeviceExperience({ solution, active, onSolutionChange, setup, setSetup, savedLanguage, finishLanguage }: {
+  solution: 1 | 2;
+  active: boolean;
+  onSolutionChange: (solution: 1 | 2) => void;
+  setup: SharedSetup;
+  setSetup: React.Dispatch<React.SetStateAction<SharedSetup>>;
+  savedLanguage: React.RefObject<string | null>;
+  finishLanguage: () => void;
+}) {
+  const factoryState = setup.screen;
+  const languageIndex = setup.languageIndex;
+  const [resetHoldActive, setResetHoldActive] = useState(false);
+  const [resetConfirmActivity, setResetConfirmActivity] = useState(0);
+  const resetHoldTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const appliedResetVersion = useRef(0);
+  const appliedFinishVersion = useRef(0);
   const [state, setState] = useState<ScreenState>("off");
   const [previousState, setPreviousState] = useState<ScreenState>("home");
   const [mode, setMode] = useState<PumpMode>(V3_CONFIG.defaultMode);
@@ -541,21 +580,17 @@ function DeviceExperience({ solution, active, onSolutionChange }: { solution: 1 
   const standbyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const clickLock = useRef(false);
   const [theme, setTheme] = useState<"minimal" | "ip">("minimal");
-  const themeChosen = useRef(false);
   useEffect(() => {
     try {
-      const saved = localStorage.getItem("v3pro.theme.v1");
-      if (saved === "minimal" || saved === "ip") { setTheme(saved); themeChosen.current = true; }
-      const savedLevel = Number(localStorage.getItem("v3pro.night-level.v1"));
+      const saved = localStorage.getItem(themeStorageKey);
+      if (saved === "minimal" || saved === "ip") setTheme(saved);
+      const savedLevel = Number(localStorage.getItem(nightLevelStorageKey));
       if (savedLevel >= 1 && savedLevel <= 3) setNightLevel(savedLevel);
     } catch { /* Storage may be unavailable in private browsing. */ }
   }, []);
   const [nightOn, setNightOn] = useState(false);
   const [nightLevel, setNightLevel] = useState(2);
   const [ambientLight, setAmbientLight] = useState(35);
-  useEffect(() => {
-    try { localStorage.setItem("v3pro.night-level.v1", String(nightLevel)); } catch { /* Keep session state when storage is unavailable. */ }
-  }, [nightLevel]);
   const [nightAuto, setNightAuto] = useState(true);
   const [nightClosing, setNightClosing] = useState(false);
   const [nightHoldProgress, setNightHoldProgress] = useState(0);
@@ -591,7 +626,7 @@ function DeviceExperience({ solution, active, onSolutionChange }: { solution: 1 
   const wheelGestureEndTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isPowered = !(state === "nightLight" && nightReturn.current === "off") && state !== "off" && state !== "powerOnPrompt" && state !== "poweringOff";
   const isRunning = pumpStatus === "running";
-  const deviceControlsLocked = nightOffFeedback || levelLimit || !isPowered || state === "boot" || state === "theme" || state === "leakCheck";
+  const deviceControlsLocked = !!factoryState || nightOffFeedback || levelLimit || !isPowered || state === "boot" || state === "theme" || state === "leakCheck";
   const modeColor = MODE_COLORS[mode];
   const lampIntensity = nightAuto ? .88 - ambientLight / 100 * .56 : [0, .32, .62, 1][nightLevel];
 
@@ -607,14 +642,14 @@ function DeviceExperience({ solution, active, onSolutionChange }: { solution: 1 
   }, []);
 
   const resetIdle = useCallback(() => {
-    if (!isPowered || state === "boot" || state === "standby" || state === "endingPump") return;
+    if (factoryState || !isPowered || state === "boot" || state === "standby" || state === "endingPump") return;
     if (idleTimer.current) clearTimeout(idleTimer.current);
     idleTimer.current = setTimeout(() => {
       setPreviousState(state);
       setState("standby");
       setToast("已进入待机，点按或操作按键唤醒");
     }, V3_CONFIG.standbyAfterMs);
-  }, [isPowered, state]);
+  }, [factoryState, isPowered, state]);
 
   useEffect(() => {
     resetIdle();
@@ -1007,13 +1042,57 @@ function DeviceExperience({ solution, active, onSolutionChange }: { solution: 1 
     if (state !== "off" && state !== "powerOnPrompt" && !(state === "nightLight" && nightReturn.current === "off")) return;
     if (!nightOn) nightFirstOn.current = true;
     setState("boot"); setToast("设备启动中…");
-    setTimeout(() => { setState(themeChosen.current ? "home" : "theme"); setToast(themeChosen.current ? "Stimulation 默认主页" : "滚轮选择皮肤，点按圆盘确认"); }, V3_CONFIG.bootDurationMs);
   }, [nightOn, state]);
+
+  useEffect(() => {
+    if (state !== "boot") return;
+    const timer = setTimeout(() => {
+      setState("home");
+      setToast("Stimulation 默认主页");
+      if (!savedLanguage.current) {
+        setSetup(current => current.screen ? current : { ...current, screen: "languageSelect", languageIndex: defaultLanguageIndex });
+      }
+    }, V3_CONFIG.bootDurationMs);
+    return () => clearTimeout(timer);
+  }, [savedLanguage, setSetup, state]);
+
+  const stopResetHold = useCallback(() => {
+    if (resetHoldTimer.current) clearInterval(resetHoldTimer.current);
+    resetHoldTimer.current = null;
+    setResetHoldActive(false);
+    setResetConfirmActivity(value => value + 1);
+    setSetup(current => current.screen === "resetConfirm" && current.progress > 0 ? { ...current, progress: 0 } : current);
+  }, [setSetup]);
+
+  const cancelFactoryReset = useCallback(() => {
+    stopResetHold();
+    setSetup(current => ({ ...current, screen: null }));
+    setPreviousState(pumpStatus === "running" ? "pumping" : pumpStatus === "paused" ? "paused" : "home");
+    setState("standby");
+    setToast("已取消恢复出厂设置");
+  }, [pumpStatus, setSetup, stopResetHold]);
+
+  useEffect(() => {
+    if (!active || factoryState !== "resetConfirm" || resetHoldActive) return;
+    const timer = setTimeout(cancelFactoryReset, FACTORY_SETUP.resetConfirmTimeoutMs);
+    return () => clearTimeout(timer);
+  }, [active, cancelFactoryReset, factoryState, resetConfirmActivity, resetHoldActive]);
+
+  useEffect(() => {
+    if (!active || factoryState !== "resetConfirm") stopResetHold();
+    return () => { if (resetHoldTimer.current) clearInterval(resetHoldTimer.current); };
+  }, [active, factoryState, stopResetHold]);
+
+  const navigateLanguage = useCallback((direction: "back" | "continue") => {
+    if (direction === "back") setSetup(current => ({ ...current, screen: "languageSelect" }));
+    else if (DEVICE_LANGUAGES[languageIndex].builtIn) finishLanguage();
+    else setSetup(current => ({ ...current, screen: "languageQr" }));
+  }, [finishLanguage, languageIndex, setSetup]);
 
   const handleWheel = useCallback((event: React.WheelEvent) => {
     event.preventDefault();
-    if (nightOffFeedback) return;
-    if (state === "standby") { wake("home"); return; }
+    if (nightOffFeedback || (factoryState && factoryState !== "languageSelect")) return;
+    if (!factoryState && state === "standby") { wake("home"); return; }
     const gestureDelta = Math.abs(event.deltaY) >= Math.abs(event.deltaX) ? event.deltaY : -event.deltaX;
     const levelAdjustmentActive = state === "level" || state === "bothLevel";
     if (wheelGestureLocked.current && !levelAdjustmentActive && !(state === "sidePauseConfirm" && gestureDelta > 0)) return;
@@ -1027,6 +1106,10 @@ function DeviceExperience({ solution, active, onSolutionChange }: { solution: 1 
     const direction = wheelAccumulator.current > 0 ? 1 : -1;
     wheelAccumulator.current = 0;
     wheelGestureLocked.current = true;
+    if (factoryState === "languageSelect") {
+      setSetup(current => ({ ...current, languageIndex: Math.max(0, Math.min(DEVICE_LANGUAGES.length - 1, current.languageIndex + direction)) }));
+      return;
+    }
     if (state === "sidePauseConfirm") {
       const pending = pendingSidePause.current;
       if (direction <= 0 || !pending) return;
@@ -1051,6 +1134,7 @@ function DeviceExperience({ solution, active, onSolutionChange }: { solution: 1 
       const next = Math.min(3, Math.max(1, (nightAuto ? 1 : nightLevel) + direction));
       setNightAuto(next === 1);
       setNightLevel(next);
+      try { localStorage.setItem(nightLevelStorageKey, String(next)); } catch { /* Keep the selection in memory. */ }
       return;
     }
     if (state === "paused" || state === "home" || state === "pumping") {
@@ -1123,16 +1207,20 @@ function DeviceExperience({ solution, active, onSolutionChange }: { solution: 1 
       }
       if (state === "level" && activeControl === "speed") setSpeedLevel(value => Math.min(V3_CONFIG.maxSpeed, Math.max(1, value + direction)));
     }
-  }, [activeControl, beginSuctionFeedback, clearSuctionTimers, leftLevel, levelLimit, mode, modeMaxLevel, rightLevel, nightAuto, nightLevel, nightOn, nightOffFeedback, state, wake]);
+  }, [factoryState, setSetup, activeControl, beginSuctionFeedback, clearSuctionTimers, leftLevel, levelLimit, mode, modeMaxLevel, rightLevel, nightAuto, nightLevel, nightOn, nightOffFeedback, state, wake]);
 
   const handleScreenClick = useCallback(() => {
     if (clickLock.current || nightOffFeedback) return;
+    if (factoryState === "languageSelect") {
+      setSetup(current => ({ ...current, screen: "languageConfirm" }));
+      return;
+    }
+    if (factoryState) return;
     if (state === "off") { setState("powerOnPrompt"); setPowerOnPromptActivity((value) => value + 1); setToast("长按圆屏 2 秒即可开机"); return; }
     if (state === "powerOnPrompt") { setPowerOnPromptActivity((value) => value + 1); setToast("长按圆屏 2 秒即可开机"); return; }
     if (state === "boot") return;
     if (state === "theme") {
-      themeChosen.current = true;
-      try { localStorage.setItem("v3pro.theme.v1", theme); } catch { /* Session selection still applies. */ }
+      try { localStorage.setItem(themeStorageKey, theme); } catch { /* Session selection still applies. */ }
       setState("home"); setToast(`已选择 ${theme === "minimal" ? "Minimal" : "IP"} 皮肤`); return;
     }
     if (state === "standby") { wake(); return; }
@@ -1158,7 +1246,7 @@ function DeviceExperience({ solution, active, onSolutionChange }: { solution: 1 
     }
     if (state === "finish" || state === "modeSuccess" || state === "endingPump" || state === "poweringOff") return;
     togglePump();
-  }, [commitSidePause, confirmLevel, handlePauseButton, levelLimit, menuIndex, mode, nightOffFeedback, pumpStatus, showTemporary, state, theme, togglePump, wake]);
+  }, [factoryState, setSetup, commitSidePause, confirmLevel, handlePauseButton, levelLimit, menuIndex, mode, nightOffFeedback, pumpStatus, showTemporary, state, theme, togglePump, wake]);
 
   const clearTransition = useCallback(() => {
     if (transitionTimer.current) clearInterval(transitionTimer.current);
@@ -1217,6 +1305,26 @@ function DeviceExperience({ solution, active, onSolutionChange }: { solution: 1 
   }, [clearTransition, state, transitionKind]);
 
   const beginHold = useCallback(() => {
+    if (factoryState === "resetConfirm") {
+      if (resetHoldTimer.current) return;
+      setResetHoldActive(true);
+      const start = Date.now();
+      resetHoldTimer.current = setInterval(() => {
+        const progress = (Date.now() - start) * 100 / FACTORY_SETUP.resetHoldMs;
+        if (progress < 100) {
+          setSetup(current => current.screen === "resetConfirm" ? { ...current, progress } : current);
+          return;
+        }
+        stopResetHold();
+        savedLanguage.current = null;
+        try {
+          for (const key of [languageStorageKey, themeStorageKey, nightLevelStorageKey]) localStorage.removeItem(key);
+        } catch { /* Reset the running demo even when storage is unavailable. */ }
+        setSetup(current => ({ ...current, screen: "resetting", resetVersion: current.resetVersion + 1 }));
+      }, 40);
+      return;
+    }
+    if (factoryState) return;
     if (nightOffFeedback || levelLimit) return;
     if (!(["off", "powerOnPrompt", "home", "paused", "pumping", "menu", "level", "bothLevel", "nightLight", "sealChecking", "sealPassed", "leakCheck"] as ScreenState[]).includes(state)) return;
     clickLock.current = false;
@@ -1250,13 +1358,19 @@ function DeviceExperience({ solution, active, onSolutionChange }: { solution: 1 
         }, 180);
       }
     }, 40);
-  }, [beginTransitionHold, leakStep, levelLimit, nightOffFeedback, pumpStatus, startPowerOn, state, stopHold]);
+  }, [beginTransitionHold, factoryState, levelLimit, nightOffFeedback, pumpStatus, savedLanguage, setSetup, startPowerOn, state, stopResetHold]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (!active || event.repeat) return;
       const key = event.key.toLowerCase();
       if (event.target instanceof HTMLElement && event.target.closest("input,select,textarea")) return;
+      if (factoryState) {
+        if (factoryState === "resetConfirm" && ["q", "w", "e", "a", "d"].includes(key)) cancelFactoryReset();
+        if (factoryState === "languageConfirm" && (key === "a" || key === "d")) navigateLanguage(key === "a" ? "back" : "continue");
+        if (factoryState === "languageSelect" && key === "s") handleScreenClick();
+        return;
+      }
       if (key === "q") showTemporary("stimulation");
       if (key === "w") showTemporary("expression");
       if (key === "e") openLevel("speed");
@@ -1266,7 +1380,7 @@ function DeviceExperience({ solution, active, onSolutionChange }: { solution: 1 
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [active, handlePauseButton, handleScreenClick, openCombinedLevel, openLevel, showTemporary, solution, toggleNight]);
+  }, [active, cancelFactoryReset, factoryState, handlePauseButton, handleScreenClick, navigateLanguage, openCombinedLevel, openLevel, showTemporary, solution, toggleNight]);
 
   const screenImage = useMemo(() => {
     if (state === "home" || state === "pumping" || state === "paused" || state === "level" || state === "bothLevel" || state === "sidePauseConfirm" || state === "suctionProgress" || state === "endingPump" || state === "poweringOff" || state === "sealChecking" || state === "sealPassed" || state === "leakCheck") return undefined;
@@ -1290,7 +1404,7 @@ function DeviceExperience({ solution, active, onSolutionChange }: { solution: 1 
   const suctionStatus = visibleSuctionFeedback?.phase === "adjusting" ? "Suction adjusting..." : visibleSuctionFeedback?.phase === "complete" ? "Adjustment complete" : undefined;
   const showingNightPowerOnHold = state === "nightLight" && nightReturn.current === "off" && holdProgress > 0;
 
-  const reset = () => {
+  const resetDevice = useCallback(() => {
     if (holdCompletionTimer.current) clearTimeout(holdCompletionTimer.current);
     holdCompletionTimer.current = null;
     if (nightCompletionTimer.current) clearTimeout(nightCompletionTimer.current);
@@ -1299,24 +1413,71 @@ function DeviceExperience({ solution, active, onSolutionChange }: { solution: 1 
     levelConfirmTimer.current = null;
     if (modeSwitchTimer.current) clearTimeout(modeSwitchTimer.current);
     modeSwitchTimer.current = null;
-    stopHold(); clearTransition(); clearSuctionTimers(); setSuctionFeedback({ left: null, right: null }); pausePromptSeen.current = { left: false, right: false }; pendingSidePause.current = null; pendingLevelLimit.current = null;
+    if (holdTimer.current) clearInterval(holdTimer.current);
+    holdTimer.current = null;
+    clickLock.current = false;
+    setHoldProgress(0);
+    clearTransition(); clearSuctionTimers(); setSuctionFeedback({ left: null, right: null }); pausePromptSeen.current = { left: false, right: false }; pendingSidePause.current = null; pendingLevelLimit.current = null;
     actualKpa.current = { left: suctionKpa(V3_CONFIG.defaultMode, V3_CONFIG.stimulationDefaultLevel), right: suctionKpa(V3_CONFIG.defaultMode, V3_CONFIG.stimulationDefaultLevel) };
     suctionRiseAnchor.current = { ...actualKpa.current };
     setState("off"); setMode(V3_CONFIG.defaultMode); setSuctionLevels(defaultSuctionLevels()); setPauseCountdown(5);
     setSpeedLevel(V3_CONFIG.defaultSpeed); setSeconds(0); setPumpStatus("idle"); setMenuIndex(0); setToast("长按圆屏 2 秒开机");
     setLeakStep(0); setBluetoothConnected(false); setNightOn(false); setNightOffFeedback(false); setLevelLimit(false); setLevelLimitPreview(null); stopNightHold();
-  };
+  }, [clearSuctionTimers, clearTransition, stopNightHold]);
 
-  const jumpToDemoState = (target: "home" | "pumping" | "paused" | "sealChecking" | "leakCheck" | "standby" | "off") => {
-    if (target === "home") { setPumpStatus("idle"); setSeconds(0); }
-    if (target === "pumping" || target === "sealChecking") setPumpStatus("running");
-    if (target === "paused" || target === "leakCheck") setPumpStatus("paused");
-    if (target === "sealChecking") setSeconds(0);
-    if (target === "leakCheck") setLeakStep(0);
-    if (target === "standby") setPreviousState(pumpStatus === "running" ? "pumping" : pumpStatus === "paused" ? "paused" : "home");
-    if (target === "off") { setPumpStatus("idle"); setSeconds(0); }
-    setState(target);
-    setToast(stateLabels[target]);
+
+  useEffect(() => {
+    if (setup.resetVersion === appliedResetVersion.current) return;
+    appliedResetVersion.current = setup.resetVersion;
+    resetDevice();
+    setTheme("minimal");
+    setNightLevel(2);
+    setNightAuto(true);
+    setNightDimmed(false);
+    nightFirstOn.current = true;
+    nightReturn.current = "off";
+    setActiveControl("left");
+    setPreviousState("home");
+  }, [resetDevice, setup.resetVersion]);
+
+  useEffect(() => {
+    if (setup.finishVersion === appliedFinishVersion.current) return;
+    appliedFinishVersion.current = setup.finishVersion;
+    if (!active) return;
+    setState("home");
+    setToast("Stimulation 默认主页");
+  }, [active, setup.finishVersion]);
+
+  const reset = () => {
+    stopResetHold();
+    resetDevice();
+    setSetup(current => ({ ...current, screen: null, progress: 0 }));
+  };
+  const canTriggerFactoryReset = !factoryState && isPowered && !nightOffFeedback && state !== "boot" && state !== "endingPump";
+  const openFactoryReset = () => {
+    if (!canTriggerFactoryReset) return;
+    stopHold();
+    setSetup(current => ({ ...current, screen: "resetConfirm", progress: 0 }));
+  };
+  const simulateLanguageInstall = (result: "success" | "failure") => {
+    setBluetoothConnected(true);
+    setSetup(current => current.screen === "languageQr" ? { ...current, screen: "languageInstall", installResult: result, progress: 0 } : current);
+  };
+  const endDialHold = factoryState === "resetConfirm" ? stopResetHold : stopHold;
+  const visibleState = factoryState ?? state;
+  const hasPhysicalLanguageActions = solution === 1 && factoryState === "languageConfirm";
+  const controlsUnpowered = !hasPhysicalLanguageActions && ((!isPowered && state !== "poweringOff") || state === "boot");
+  const visiblePowered = factoryState ? factoryState !== "resetRestart" : isPowered;
+  const visibleToast = factoryState === "languageSelect" ? "滚轮选择语言，点按圆盘确认" :
+    factoryState === "languageConfirm" ? (solution === 1 ? "左键返回，右键继续" : "点按屏幕上的返回或继续") :
+    factoryState === "resetConfirm" ? "长按圆盘 3 秒确认恢复出厂设置" :
+    factoryState ? stateLabels[factoryState] : toast;
+
+  const startDemoSelfCheck = () => {
+    setPumpStatus("running");
+    setSeconds(0);
+    setState("sealChecking");
+    setToast(stateLabels.sealChecking);
   };
 
   return (
@@ -1335,10 +1496,17 @@ function DeviceExperience({ solution, active, onSolutionChange }: { solution: 1 
           <img className={`night-light-rim${nightOn ? " is-on" : ""}`} style={{ "--lamp-intensity": lampIntensity } as React.CSSProperties} src="/assets/device/整机UI-不包含按键.png" alt="" aria-hidden="true" draggable={false} />
           <img className="device-image" src="/assets/device/整机UI-不包含按键.png" alt="V3 吸奶器主机" draggable={false} />
           <div className={`night-light-source${nightOn ? " is-on" : ""}`} style={{ "--lamp-intensity": lampIntensity } as React.CSSProperties} aria-hidden="true" />
-          <div ref={screenRef} onWheel={handleWheel} className={`round-screen state-${state}${state === "leakCheck" ? " leak-circle-control" : ""}`} style={{ "--mode-color": modeColor } as React.CSSProperties} onClick={handleScreenClick}
+          <div ref={screenRef} onWheel={handleWheel} className={`round-screen state-${visibleState}${!factoryState && state === "leakCheck" ? " leak-circle-control" : ""}`} style={{ "--mode-color": modeColor } as React.CSSProperties} onClick={handleScreenClick}
             onPointerDown={beginHold}
-            onPointerUp={stopHold} onPointerCancel={stopHold} onPointerLeave={stopHold} onContextMenu={(e) => e.preventDefault()}
-            role="button" tabIndex={0} onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleScreenClick(); } }} aria-label="圆盘：点按开始暂停或确认，长按两秒关机，滚轮调节">
+            onPointerUp={endDialHold} onPointerCancel={endDialHold} onPointerLeave={endDialHold} onContextMenu={(e) => e.preventDefault()}
+            role="button" tabIndex={0} onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleScreenClick(); } }} aria-label={factoryState === "languageSelect" ? `圆盘：${DEVICE_LANGUAGES[languageIndex].label}，滚轮切换语言，点按确认` :
+              factoryState === "resetConfirm" ? "圆盘：长按三秒确认恢复出厂设置" :
+              factoryState ? `圆盘：${stateLabels[factoryState]}` : "圆盘：点按开始暂停或确认，长按两秒关机，滚轮调节"}>
+            {factoryState === "resetBoot" && <img src={fixedImages.boot} alt="" draggable={false} />}
+            {factoryState && factoryState !== "resetBoot" && <FactoryScreen state={factoryState} languageIndex={languageIndex} progress={setup.progress} resetProgress={setup.progress} />}
+            {(factoryState === "languageInstall" || (factoryState === "resetConfirm" && setup.progress > 0)) &&
+              <ArcProgress percent={setup.progress} color="#F3F4FF" />}
+            {!factoryState && <>
             {screenImage && <img src={screenImage} alt="" draggable={false} />}
             {showingNightPowerOnHold && <img src={fixedImages.powerOnPrompt} alt="" draggable={false} />}
             {state === "standby" && <StandbyScreen />}
@@ -1391,28 +1559,34 @@ function DeviceExperience({ solution, active, onSolutionChange }: { solution: 1 
               <span>{Math.max(0, Math.ceil((100 - transitionProgress) / 100 * 2))} s</span>
             </div>}
             {(state === "powerOnPrompt" || state === "nightLight") && holdProgress > 0 && <ArcProgress percent={holdProgress} color="#F3F4FF" />}
+            </>}
           </div>
+          {factoryState === "languageConfirm" && <div className="factory-action-targets">
+            <button aria-label="返回" onClick={() => navigateLanguage("back")} />
+            <button aria-label="继续" onClick={() => navigateLanguage("continue")} />
+          </div>}
 
-          <div className={`device-controls solution-${solution}${(!isPowered && state !== "poweringOff") || state === "boot" ? " is-unpowered" : ""}${state === "theme" || state === "poweringOff" || state === "endingPump" || (nightOffFeedback && isPowered) || (levelLimit && isPowered) ? " is-controls-lit" : ""}${state === "leakCheck" ? " is-leak-check" : ""}`} aria-label="设备实体按键">
-            {MODES.map((item) => <button key={item.id} onClick={() => showTemporary(item.id)} disabled={deviceControlsLocked} aria-label={item.id === "stimulation" ? "Stimulation" : item.label}><img className="button-art" src={item.id === "stimulation" ? "/assets/v3-pro/controls/stimulation-key.svg" : "/assets/v5/device-buttons/Expression.svg"} alt={item.id === "stimulation" ? "Stimulation" : item.label} /></button>)}
-            <button onClick={() => openLevel("speed")} disabled={deviceControlsLocked} aria-label="Speed"><img className="button-art" src="/assets/v5/device-buttons/Speed.svg" alt="Speed" /></button>
-            {solution === 1 ? <button onClick={() => openLevel("left")} disabled={deviceControlsLocked} aria-label="Left"><img className="button-art" src="/assets/v5/device-buttons/Left.svg" alt="Left" /></button>
-              : <button onClick={openCombinedLevel} disabled={deviceControlsLocked} aria-label="Level：切换左侧和右侧档位"><img className="button-art" src="/assets/v3-pro/controls/combined-level-key.svg" alt="Level" /></button>}
-            {solution === 2 && <button onClick={() => { if (!clickLock.current) handlePauseButton(); }}
-              onPointerDown={beginHold} onPointerUp={stopHold} onPointerCancel={stopHold} onPointerLeave={stopHold}
+          <div className={`device-controls solution-${solution}${controlsUnpowered ? " is-unpowered" : ""}${state === "theme" || state === "poweringOff" || state === "endingPump" || (nightOffFeedback && isPowered) || (levelLimit && isPowered) ? " is-controls-lit" : ""}${state === "leakCheck" ? " is-leak-check" : ""}${hasPhysicalLanguageActions ? " is-language-confirm" : ""}`}
+            hidden={solution === 1 && factoryState === "languageSelect"} aria-label="设备实体按键">
+            {MODES.map((item) => <button key={item.id} onClick={() => factoryState === "resetConfirm" ? cancelFactoryReset() : showTemporary(item.id)} disabled={deviceControlsLocked && factoryState !== "resetConfirm"} aria-label={item.id === "stimulation" ? "Stimulation" : item.label}><img className="button-art" src={item.id === "stimulation" ? "/assets/v3-pro/controls/stimulation-key.svg" : "/assets/v5/device-buttons/Expression.svg"} alt={item.id === "stimulation" ? "Stimulation" : item.label} /></button>)}
+            <button onClick={() => factoryState === "resetConfirm" ? cancelFactoryReset() : openLevel("speed")} disabled={deviceControlsLocked && factoryState !== "resetConfirm"} aria-label="Speed"><img className="button-art" src="/assets/v5/device-buttons/Speed.svg" alt="Speed" /></button>
+            {solution === 1 ? <button onClick={() => factoryState === "languageConfirm" ? navigateLanguage("back") : factoryState === "resetConfirm" ? cancelFactoryReset() : openLevel("left")} disabled={deviceControlsLocked && factoryState !== "languageConfirm" && factoryState !== "resetConfirm"} aria-label="Left"><img className="button-art" src="/assets/v5/device-buttons/Left.svg" alt="Left" /></button>
+              : <button onClick={factoryState === "resetConfirm" ? cancelFactoryReset : openCombinedLevel} disabled={deviceControlsLocked && factoryState !== "resetConfirm"} aria-label="Level：切换左侧和右侧档位"><img className="button-art" src="/assets/v3-pro/controls/combined-level-key.svg" alt="Level" /></button>}
+            {solution === 2 && <button onClick={() => { if (factoryState === "resetConfirm") cancelFactoryReset(); else if (!clickLock.current) handlePauseButton(); }}
+              onPointerDown={factoryState ? undefined : beginHold} onPointerUp={factoryState ? undefined : stopHold} onPointerCancel={factoryState ? undefined : stopHold} onPointerLeave={factoryState ? undefined : stopHold}
               onContextMenu={event => event.preventDefault()}
-              disabled={deviceControlsLocked} aria-label="Start/Pause：点按开始或暂停，长按结束并关机">
+              disabled={deviceControlsLocked && factoryState !== "resetConfirm"} aria-label="Start/Pause：点按开始或暂停，长按结束并关机">
               <img className="button-art" src="/assets/v5/device-buttons/SP.svg" alt="Start/Pause" />
             </button>}
-            <button className={`night-control-button${state === "off" || state === "boot" ? " is-unpowered" : ""}`} data-asset-slot="night-light-key" onClick={toggleNight}
-              onPointerDown={beginNightHold} onPointerUp={stopNightHold} onPointerCancel={stopNightHold} onPointerLeave={stopNightHold}
-              disabled={nightOffFeedback || ["boot", "poweringOff", "endingPump", "theme"].includes(state)} aria-label="夜灯：短按开启，长按两秒关闭">
+            <button className={`night-control-button${state === "off" || state === "boot" ? " is-unpowered" : ""}`} data-asset-slot="night-light-key" onClick={factoryState === "resetConfirm" ? cancelFactoryReset : toggleNight}
+              onPointerDown={factoryState ? undefined : beginNightHold} onPointerUp={stopNightHold} onPointerCancel={stopNightHold} onPointerLeave={stopNightHold}
+              disabled={(!!factoryState && factoryState !== "resetConfirm") || nightOffFeedback || ["boot", "poweringOff", "endingPump", "theme"].includes(state)} aria-label="夜灯：短按开启，长按两秒关闭">
               {V3_CONFIG.nightKeyAsset ? <img className="button-art" src={V3_CONFIG.nightKeyAsset} alt="夜灯" /> : <span className={`night-key-placeholder${nightOn ? " is-on" : ""}`}><span>夜灯</span><small>Light</small></span>}
             </button>
-            {solution === 1 && <button onClick={() => openLevel("right")} disabled={deviceControlsLocked} aria-label="Right"><img className="button-art" src="/assets/v5/device-buttons/Right.svg" alt="Right" /></button>}
+            {solution === 1 && <button onClick={() => factoryState === "languageConfirm" ? navigateLanguage("continue") : factoryState === "resetConfirm" ? cancelFactoryReset() : openLevel("right")} disabled={deviceControlsLocked && factoryState !== "languageConfirm" && factoryState !== "resetConfirm"} aria-label="Right"><img className="button-art" src="/assets/v5/device-buttons/Right.svg" alt="Right" /></button>}
           </div>
         </div>
-        <div className="status-toast"><span className={isPowered ? "dot on" : "dot"} />{toast}</div>
+        <div className="status-toast"><span className={visiblePowered ? "dot on" : "dot"} />{visibleToast}</div>
       </section>
 
       <aside className="guide-panel">
@@ -1424,13 +1598,17 @@ function DeviceExperience({ solution, active, onSolutionChange }: { solution: 1 
         <button className="debug-toggle" onClick={() => setShowDebug(!showDebug)}>{showDebug ? "收起演示状态" : "演示状态"}</button>
         {showDebug && <div className="debug-content">
           <div className="app-simulator"><b>设备事件模拟</b><div className="simulator-row">{MENU_ITEMS.filter(item => item.mode !== "stimulation" && item.mode !== "expression").map(item => <button disabled={deviceControlsLocked} key={item.mode} onClick={() => { setBluetoothConnected(true); showTemporary(item.mode); }}>{item.label}</button>)}</div>
+            {factoryState === "languageQr" && <div className="simulator-row">
+              <button onClick={() => simulateLanguageInstall("success")}>模拟安装成功</button>
+              <button onClick={() => simulateLanguageInstall("failure")}>模拟安装失败</button>
+            </div>}
             {nightOn && nightAuto && <div className="ambient-control"><label htmlFor="ambient-light">外部光线模拟 <span>{ambientLight < 34 ? "昏暗" : ambientLight < 67 ? "适中" : "明亮"}</span></label><input id="ambient-light" type="range" min="0" max="100" value={ambientLight} onChange={event => setAmbientLight(Number(event.target.value))} aria-label="外部光线亮度" /><div className="ambient-scale"><span>暗</span><span>亮</span></div></div>}
           </div>
           <button disabled={pumpStatus !== "idle" || deviceControlsLocked} onClick={() => setState("theme")}>皮肤选择</button>
           <button onClick={reset}>重置演示</button>
-          <button onClick={() => jumpToDemoState("sealChecking")}>启动自检</button>
-          <button onClick={() => jumpToDemoState("home")}>主页</button>
-          <button onClick={() => { setBluetoothConnected((value) => !value); setToast(bluetoothConnected ? "蓝牙已断开" : "蓝牙已连接"); }}>{bluetoothConnected ? "断开蓝牙" : "连接蓝牙"}</button>
+          <button onClick={openFactoryReset} disabled={!canTriggerFactoryReset}>恢复出厂设置</button>
+          <button disabled={!!factoryState} onClick={startDemoSelfCheck}>启动自检</button>
+          <button disabled={!!factoryState} onClick={() => { setBluetoothConnected((value) => !value); setToast(bluetoothConnected ? "蓝牙已断开" : "蓝牙已连接"); }}>{bluetoothConnected ? "断开蓝牙" : "连接蓝牙"}</button>
         </div>}
       </aside>
     </main>
@@ -1439,8 +1617,53 @@ function DeviceExperience({ solution, active, onSolutionChange }: { solution: 1 
 
 export default function DeviceDemo() {
   const [solution, setSolution] = useState<1 | 2>(1);
+  const [setup, setSetup] = useState(initialSetup);
+  const savedLanguage = useRef<string | null>(null);
+  useEffect(() => {
+    try { savedLanguage.current = localStorage.getItem(languageStorageKey); } catch { /* Keep session state. */ }
+  }, []);
+
+  const finishLanguage = useCallback(() => {
+    const id = DEVICE_LANGUAGES[setup.languageIndex].id;
+    savedLanguage.current = id;
+    try { localStorage.setItem(languageStorageKey, id); } catch { /* Keep session state. */ }
+    setSetup(current => ({ ...current, screen: "languageSuccess" }));
+  }, [setup.languageIndex]);
+
+  const { screen, installResult } = setup;
+  useEffect(() => {
+    if (screen === "languageInstall") {
+      const startedAt = Date.now();
+      const ticker = setInterval(() => {
+        const progress = Math.min(100, Math.floor((Date.now() - startedAt) * 100 / FACTORY_SETUP.installDurationMs));
+        setSetup(current => current.screen === screen ? { ...current, progress } : current);
+      }, 50);
+      const timer = setTimeout(() => {
+        if (installResult === "success") finishLanguage();
+        else setSetup(current => ({ ...current, screen: "languageFailure" }));
+      }, FACTORY_SETUP.installDurationMs);
+      return () => { clearInterval(ticker); clearTimeout(timer); };
+    }
+    const transitions = {
+      languageSuccess: [null, FACTORY_SETUP.resultDurationMs],
+      languageFailure: ["languageQr", FACTORY_SETUP.resultDurationMs],
+      resetting: ["resetRestart", FACTORY_SETUP.resetDurationMs],
+      resetRestart: ["resetBoot", FACTORY_SETUP.restartDelayMs],
+      resetBoot: ["languageSelect", V3_CONFIG.bootDurationMs],
+    } satisfies Partial<Record<SetupScreen, [SetupScreen | null, number]>>;
+    if (!screen || !(screen in transitions)) return;
+    const [next, duration] = transitions[screen as keyof typeof transitions];
+    const timer = setTimeout(() => setSetup(current => current.screen === screen ? {
+      ...current, screen: next,
+      languageIndex: screen === "resetBoot" ? defaultLanguageIndex : current.languageIndex,
+      finishVersion: current.finishVersion + (screen === "languageSuccess" ? 1 : 0),
+    } : current), duration);
+    return () => clearTimeout(timer);
+  }, [finishLanguage, installResult, screen]);
+
+  const setupProps = { setup, setSetup, savedLanguage, finishLanguage };
   return <>
-    <DeviceExperience solution={1} active={solution === 1} onSolutionChange={setSolution} />
-    <DeviceExperience solution={2} active={solution === 2} onSolutionChange={setSolution} />
+    <DeviceExperience solution={1} active={solution === 1} onSolutionChange={setSolution} {...setupProps} />
+    <DeviceExperience solution={2} active={solution === 2} onSolutionChange={setSolution} {...setupProps} />
   </>;
 }

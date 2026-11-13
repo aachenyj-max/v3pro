@@ -164,6 +164,8 @@ button { font:inherit; }
 .power-off-content p span { white-space:nowrap; }
 .power-off-screen>span { bottom:10.3%; color:#999; font-size:4.398cqw; font-weight:500; line-height:1.3; }
 .device-controls { position:absolute; z-index:3; left:53.7%; top:35.5%; width:32%; display:grid; grid-template-columns:repeat(3,1fr); gap:22px 26px; }
+.device-controls[hidden] { display:none; }
+.device-controls.is-language-confirm button:disabled { visibility:hidden; }
 .device-controls.solution-1,.device-controls.solution-2 { top:34%; row-gap:clamp(16px,2.5vw,36px); }
 .device-controls.solution-1 .button-art,.device-controls.solution-2 .button-art { width:min(85%,88px); }
 .device-controls button { position:relative; display:flex; min-width:0; align-items:center; justify-content:center; padding:0; border:0; background:transparent; color:#fff; cursor:pointer; }
@@ -258,3 +260,13 @@ button { font:inherit; }
 .theme-options { position:absolute; top:41.5%; left:19.5%; width:61%; gap:7%; }
 .theme-options>div { width:46.5%; }
 .theme-options span { font-size:4.4cqw; white-space:nowrap; }
+
+.factory-screen { position:absolute; inset:0; display:block; width:100%; height:100%; background:#000; fill:#fff; pointer-events:none; }
+.factory-screen text { text-anchor:middle; dominant-baseline:central; font-family:"Aeonik Soft Pro","PingFang SC","Microsoft YaHei",sans-serif; }
+.factory-action-targets { position:absolute; z-index:4; left:20.6%; top:31.25%; width:25.65%; aspect-ratio:1; pointer-events:none; }
+.factory-action-targets button { position:absolute; top:65%; left:28%; width:17.6%; height:17%; border:0; border-radius:50%; padding:0; background:transparent; pointer-events:auto; cursor:pointer; }
+.factory-action-targets button + button { left:56.7%; }
+.factory-action-targets button:focus-visible { outline:2px solid #e2637e; outline-offset:2px; }
+.factory-reset-spinner { transform-origin:216px 187px; animation:factory-reset-spin 1.1s linear infinite; }
+@keyframes factory-reset-spin { to { transform:rotate(360deg); } }
+@media (prefers-reduced-motion:reduce) { .factory-reset-spinner { animation:none; } }

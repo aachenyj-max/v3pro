@@ -21,6 +21,34 @@ export const V3_CONFIG = {
 };
 
 export type PumpMode = "stimulation" | "expression" | "powerPumping" | "milkBoost" | "cozyFlow" | "customized";
+export type LanguageSetupState = "languageSelect" | "languageConfirm" | "languageQr" | "languageInstall" | "languageSuccess" | "languageFailure";
+export type FactoryResetState = "resetConfirm" | "resetting" | "resetRestart";
+
+export const FACTORY_SETUP = {
+  slots: 14,
+  defaultLanguage: "en",
+  resetHoldMs: 3000,
+  resetConfirmTimeoutMs: 5000,
+  resetDurationMs: 1500,
+  restartDelayMs: 600,
+  installDurationMs: 3000,
+  resultDurationMs: 2000,
+  packageSizeMb: 150,
+};
+
+export const DEVICE_LANGUAGES = [
+  { id: "fr", label: "Français", builtIn: false },
+  { id: "en", label: "English", builtIn: true },
+  { id: "zh-CN", label: "简体中文", builtIn: false },
+  { id: "es", label: "Español", builtIn: false },
+  { id: "de", label: "Deutsch", builtIn: false },
+  { id: "ru", label: "Русский", builtIn: false },
+  { id: "ja", label: "日本語", builtIn: false },
+  { id: "it", label: "Italiano", builtIn: false },
+  { id: "ko", label: "한국어", builtIn: false },
+  { id: "zh-TW", label: "繁體中文", builtIn: false },
+];
+
 export type ScreenState = "bothLevel" | "sidePauseConfirm" | "suctionProgress" | "nightLight" | "theme" | "off" | "powerOnPrompt" | "boot" | "home" | "menu" | "pumping" | "paused" | "level" | "endingPump" | "finish" | "modeSuccess" | "poweringOff" | "standby" | "sealChecking" | "sealPassed" | "leakCheck";
 
 export const SUCTION_KPA = {
